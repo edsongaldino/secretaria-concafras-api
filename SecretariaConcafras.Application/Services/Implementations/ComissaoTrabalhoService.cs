@@ -3,17 +3,16 @@ using Microsoft.EntityFrameworkCore;
 using SecretariaConcafras.Application.DTOs.Comissoes;
 using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Domain.Entities;
-using SecretariaConcafras.Infrastructure.Context;
-using System;
+using SecretariaConcafras.Infrastructure;
 
 namespace SecretariaConcafras.Application.Services.Implementations
 {
     public class ComissaoTrabalhoService : IComissaoTrabalhoService
     {
-        private readonly AppDbContext _context;
+        private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
 
-        public ComissaoTrabalhoService(AppDbContext context, IMapper mapper)
+        public ComissaoTrabalhoService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;
@@ -53,8 +52,10 @@ namespace SecretariaConcafras.Application.Services.Implementations
         {
             var entity = await _context.ComissoesTrabalho
                 .Include(c => c.Evento)
-                .Include(c => c.UsuariosComissao)
-                    .ThenInclude(uc => uc.Usuario)
+                .Include(c => c.Trabalhadores)
+                    .ThenInclude(t => t.Inscricao)
+                .Include(c => c.UsuarioRoles)
+                    .ThenInclude(ur => ur.Usuario)
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             return entity == null ? null : _mapper.Map<ComissaoTrabalhoResponseDto>(entity);
@@ -64,8 +65,10 @@ namespace SecretariaConcafras.Application.Services.Implementations
         {
             var entities = await _context.ComissoesTrabalho
                 .Include(c => c.Evento)
-                .Include(c => c.UsuariosComissao)
-                    .ThenInclude(uc => uc.Usuario)
+                .Include(c => c.Trabalhadores)
+                    .ThenInclude(t => t.Inscricao)
+                .Include(c => c.UsuarioRoles)
+                    .ThenInclude(ur => ur.Usuario)
                 .ToListAsync();
 
             return _mapper.Map<IEnumerable<ComissaoTrabalhoResponseDto>>(entities);
@@ -75,12 +78,15 @@ namespace SecretariaConcafras.Application.Services.Implementations
         {
             var entities = await _context.ComissoesTrabalho
                 .Include(c => c.Evento)
-                .Include(c => c.UsuariosComissao)
-                    .ThenInclude(uc => uc.Usuario)
+                .Include(c => c.Trabalhadores)
+                    .ThenInclude(t => t.Inscricao)
+                .Include(c => c.UsuarioRoles)
+                    .ThenInclude(ur => ur.Usuario)
                 .Where(c => c.EventoId == eventoId)
                 .ToListAsync();
 
             return _mapper.Map<IEnumerable<ComissaoTrabalhoResponseDto>>(entities);
         }
+
     }
 }

@@ -11,9 +11,6 @@ namespace SecretariaConcafras.Application.Mappings
             CreateMap<Curso, CursoResponseDto>()
                 .ForMember(dest => dest.EventoTitulo, opt => opt.MapFrom(src => src.Evento.Titulo))
                 .ForMember(dest => dest.InstitutoNome, opt => opt.MapFrom(src => src.Instituto.Nome));
-
-            CreateMap<CursoCreateDto, Curso>();
-            CreateMap<CursoUpdateDto, Curso>();
         }
     }
 }

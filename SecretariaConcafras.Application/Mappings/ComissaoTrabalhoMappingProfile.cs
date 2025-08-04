@@ -10,7 +10,7 @@ namespace SecretariaConcafras.Application.Mappings
         {
             CreateMap<ComissaoTrabalho, ComissaoTrabalhoResponseDto>()
                 .ForMember(dest => dest.EventoTitulo, opt => opt.MapFrom(src => src.Evento.Titulo))
-                .ForMember(dest => dest.Usuarios, opt => opt.MapFrom(src => src.UsuariosComissao));
+                .ForMember(dest => dest.Usuarios, opt => opt.MapFrom(src => src.Trabalhadores));
 
             CreateMap<UsuarioComissao, UsuarioComissaoResponseDto>()
                 .ForMember(dest => dest.UsuarioId, opt => opt.MapFrom(src => src.UsuarioId))

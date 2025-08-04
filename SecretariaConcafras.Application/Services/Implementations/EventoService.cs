@@ -3,17 +3,17 @@ using Microsoft.EntityFrameworkCore;
 using SecretariaConcafras.Application.DTOs.Eventos;
 using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Domain.Entities;
-using SecretariaConcafras.Infrastructure.Context;
+using SecretariaConcafras.Infrastructure;
 using System;
 
 namespace SecretariaConcafras.Application.Services.Implementations
 {
     public class EventoService : IEventoService
     {
-        private readonly AppDbContext _context;
+        private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
 
-        public EventoService(AppDbContext context, IMapper mapper)
+        public EventoService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;

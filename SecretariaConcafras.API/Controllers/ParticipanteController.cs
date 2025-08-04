@@ -19,12 +19,12 @@ namespace SecretariaConcafras.API.Controllers
 
         [HttpGet]
         public async Task<IActionResult> GetAll()
-            => Ok(await _participanteService.GetAllAsync());
+            => Ok(await _participanteService.ObterTodosAsync());
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
-            var participante = await _participanteService.GetByIdAsync(id);
+            var participante = await _participanteService.ObterPorIdAsync(id);
             if (participante == null) return NotFound();
             return Ok(participante);
         }
@@ -32,22 +32,21 @@ namespace SecretariaConcafras.API.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] ParticipanteCreateDto dto)
         {
-            var participante = await _participanteService.CreateAsync(dto);
+            var participante = await _participanteService.CriarAsync(dto);
             return CreatedAtAction(nameof(GetById), new { id = participante.Id }, participante);
         }
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(Guid id, [FromBody] ParticipanteUpdateDto dto)
         {
-            var result = await _participanteService.UpdateAsync(id, dto);
-            if (!result) return NotFound();
+            var result = await _participanteService.AtualizarAsync(dto);
             return NoContent();
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var result = await _participanteService.DeleteAsync(id);
+            var result = await _participanteService.RemoverAsync(id);
             if (!result) return NotFound();
             return NoContent();
         }

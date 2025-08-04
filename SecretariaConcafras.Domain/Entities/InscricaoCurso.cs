@@ -1,3 +1,5 @@
+using SecretariaConcafras.Domain.Enums;
+
 namespace SecretariaConcafras.Domain.Entities
 {
     public class InscricaoCurso
@@ -11,6 +13,6 @@ namespace SecretariaConcafras.Domain.Entities
         public Curso Curso { get; set; }
 
         // Caso o curso seja por blocos
-        public TipoBlocoCurso TipoBloco { get; set; } = TipoBlocoCurso.Atual;
+        public BlocoCurso TipoBloco { get; set; } = BlocoCurso.TemaAtual;
     }
 }

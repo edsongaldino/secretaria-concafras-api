@@ -3,17 +3,17 @@ using Microsoft.EntityFrameworkCore;
 using SecretariaConcafras.Application.DTOs.Inscricoes;
 using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Domain.Entities;
-using SecretariaConcafras.Infrastructure.Context;
+using SecretariaConcafras.Infrastructure;
 using System;
 
 namespace SecretariaConcafras.Application.Services.Implementations
 {
     public class InscricaoService : IInscricaoService
     {
-        private readonly AppDbContext _context;
+        private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
 
-        public InscricaoService(AppDbContext context, IMapper mapper)
+        public InscricaoService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;
@@ -45,8 +45,8 @@ namespace SecretariaConcafras.Application.Services.Implementations
             var entity = await _context.Inscricoes
                 .Include(i => i.Participante)
                 .Include(i => i.Evento)
-                .Include(i => i.Curso)
-                .Include(i => i.ComissaoTrabalho)
+                .Include(i => i.InscricaoCurso)
+                .Include(i => i.InscricaoTrabalhador)
                 .FirstOrDefaultAsync(i => i.Id == id);
 
             return entity == null ? null : _mapper.Map<InscricaoResponseDto>(entity);
@@ -57,8 +57,8 @@ namespace SecretariaConcafras.Application.Services.Implementations
             var entities = await _context.Inscricoes
                 .Include(i => i.Participante)
                 .Include(i => i.Evento)
-                .Include(i => i.Curso)
-                .Include(i => i.ComissaoTrabalho)
+                .Include(i => i.InscricaoCurso)
+                .Include(i => i.InscricaoTrabalhador)
                 .Where(i => i.EventoId == eventoId)
                 .ToListAsync();
 
@@ -70,8 +70,8 @@ namespace SecretariaConcafras.Application.Services.Implementations
             var entities = await _context.Inscricoes
                 .Include(i => i.Participante)
                 .Include(i => i.Evento)
-                .Include(i => i.Curso)
-                .Include(i => i.ComissaoTrabalho)
+                .Include(i => i.InscricaoCurso)
+                .Include(i => i.InscricaoTrabalhador)
                 .Where(i => i.ParticipanteId == participanteId)
                 .ToListAsync();
 

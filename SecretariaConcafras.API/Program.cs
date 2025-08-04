@@ -1,14 +1,16 @@
-using SecretariaConcafras.Domain.Interfaces;
-using SecretariaConcafras.Infrastructure.Data;
-using SecretariaConcafras.Infrastructure.Repositories;
-using SecretariaConcafras.SharedKernel.Security;
+using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
+using Scrutor; // necessário para Scan()
 using SecretariaConcafras.Application.Interfaces.Services;
-using SecretariaConcafras.Application.Services.Implementations;
+using SecretariaConcafras.Application.Mappings;
+using SecretariaConcafras.Domain.Interfaces;
+using SecretariaConcafras.Infrastructure;
+using SecretariaConcafras.Infrastructure.Repositories;
+using SecretariaConcafras.SharedKernel.Security;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,13 +21,32 @@ var key = Encoding.ASCII.GetBytes(jwtSettings["Secret"]);
 
 // Serviços
 builder.Services.AddControllers();
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
-builder.Services.AddScoped<IUsuarioService, UsuarioService>();
-builder.Services.AddScoped<ITokenService, TokenService>();
+// Repositório genérico
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
+// Registro automático com Scrutor
+builder.Services.Scan(scan => scan
+    .FromAssemblies(
+        typeof(IUsuarioService).Assembly,     // Application
+        typeof(ApplicationDbContext).Assembly, // Infrastructure
+        typeof(ITokenService).Assembly        // SharedKernel
+    )
+    .AddClasses(c => c.Where(type => type.Name.EndsWith("Service")))
+        .AsImplementedInterfaces()
+        .WithScopedLifetime()
+    .AddClasses(c => c.Where(type => type.Name.EndsWith("Repository")))
+        .AsImplementedInterfaces()
+        .WithScopedLifetime()
+);
+
+// AutoMapper
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+
+// JWT
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -44,6 +65,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -73,14 +95,25 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngular",
+        policy => policy
+            .WithOrigins("http://localhost:4200")
+            .AllowAnyMethod()
+            .AllowAnyHeader());
+});
+
 var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "SecretariaConcafras API v1");
-    c.RoutePrefix = "swagger"; // acessa em /swagger
+    app.UseSwaggerUI(c => c.RoutePrefix = "swagger");
 });
+
+app.UseCors("AllowAngular");
 
 app.UseHttpsRedirection();
 app.UseAuthentication();

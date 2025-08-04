@@ -5,17 +5,17 @@ using SecretariaConcafras.Application.DTOs.Enderecos;
 using SecretariaConcafras.Application.DTOs.Estados;
 using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Domain.Entities;
-using SecretariaConcafras.Infrastructure.Context;
+using SecretariaConcafras.Infrastructure;
 using System;
 
 namespace SecretariaConcafras.Application.Services.Implementations
 {
     public class EstadoService : IEstadoService
     {
-        private readonly AppDbContext _context;
+        private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
 
-        public EstadoService(AppDbContext context, IMapper mapper)
+        public EstadoService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;
@@ -30,10 +30,10 @@ namespace SecretariaConcafras.Application.Services.Implementations
 
     public class CidadeService : ICidadeService
     {
-        private readonly AppDbContext _context;
+        private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
 
-        public CidadeService(AppDbContext context, IMapper mapper)
+        public CidadeService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;
@@ -52,10 +52,10 @@ namespace SecretariaConcafras.Application.Services.Implementations
 
     public class EnderecoService : IEnderecoService
     {
-        private readonly AppDbContext _context;
+        private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
 
-        public EnderecoService(AppDbContext context, IMapper mapper)
+        public EnderecoService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;

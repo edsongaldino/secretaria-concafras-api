@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SecretariaConcafras.Infrastructure.Context;
+using SecretariaConcafras.Infrastructure;
 using System;
 
 namespace SecretariaConcafras.API.Controllers
@@ -9,9 +9,9 @@ namespace SecretariaConcafras.API.Controllers
     [Route("api/[controller]")]
     public class CidadeController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly ApplicationDbContext _context;
 
-        public CidadeController(AppDbContext context)
+        public CidadeController(ApplicationDbContext context)
         {
             _context = context;
         }

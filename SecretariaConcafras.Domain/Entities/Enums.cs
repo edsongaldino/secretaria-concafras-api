@@ -25,7 +25,7 @@
     {
         Pendente = 1,
         AguardandoConfirmacao = 2,
-        Pago = 3,
+        Aprovado = 3,
         Cancelado = 4,
         Expirado = 5,
         Reembolsado = 6

@@ -1,13 +1,14 @@
 using SecretariaConcafras.Application.DTOs;
+using SecretariaConcafras.Application.DTOs.Usuarios;
 
 namespace SecretariaConcafras.Application.Interfaces.Services;
 
 public interface IUsuarioService
 {
-    Task<IEnumerable<UsuarioDto>> ObterTodosAsync();
-    Task<UsuarioDto> ObterPorIdAsync(Guid id);
-    Task<UsuarioDto> CriarAsync(UsuarioDto dto);
-    Task<UsuarioDto> AtualizarAsync(Guid id, UsuarioDto dto);
-    Task<bool> RemoverAsync(Guid id);
-    Task<string> AutenticarAsync(LoginDto login);
+    Task<IEnumerable<UsuarioResponseDto>> GetAllAsync();
+    Task<UsuarioResponseDto?> GetByIdAsync(Guid id);
+    Task<UsuarioResponseDto> CreateAsync(UsuarioCreateDto dto);
+    Task<bool> UpdateAsync(Guid id, UsuarioUpdateDto dto);
+    Task<bool> DeleteAsync(Guid id);
+    Task<UsuarioResponseDto?> LoginAsync(string email, string senha);
 }

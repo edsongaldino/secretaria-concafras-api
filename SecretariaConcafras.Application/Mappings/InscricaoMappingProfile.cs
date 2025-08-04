@@ -17,11 +17,11 @@ namespace SecretariaConcafras.Application.Mappings
                 .ForMember(dest => dest.EventoTitulo, opt => opt.MapFrom(src => src.Evento.Titulo))
 
                 // Se for inscrição em curso
-                .ForMember(dest => dest.CursoTitulo,
+                .ForMember(dest => dest.Cursos,
                     opt => opt.MapFrom(src => src.InscricaoCurso != null ? src.InscricaoCurso.Curso.Titulo : null))
 
                 // Se for trabalhador em comissão
-                .ForMember(dest => dest.ComissaoNome,
+                .ForMember(dest => dest.Comissao,
                     opt => opt.MapFrom(src => src.InscricaoTrabalhador != null ? src.InscricaoTrabalhador.ComissaoTrabalho.Nome : null));
         }
     }

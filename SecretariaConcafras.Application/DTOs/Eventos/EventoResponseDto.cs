@@ -1,4 +1,6 @@
-﻿namespace SecretariaConcafras.Application.DTOs.Eventos
+﻿using SecretariaConcafras.Application.DTOs.Cursos;
+
+namespace SecretariaConcafras.Application.DTOs.Eventos
 {
     public class EventoResponseDto
     {

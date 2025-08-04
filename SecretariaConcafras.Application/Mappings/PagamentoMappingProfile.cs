@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
-using SecretariaConcafras.Domain.Entities;
 using SecretariaConcafras.Application.DTOs.Pagamentos;
+using SecretariaConcafras.Domain.Entities;
+using SecretariaConcafras.Domain.Enums;
 
 namespace SecretariaConcafras.Application.Mappings
 {
@@ -10,9 +11,14 @@ namespace SecretariaConcafras.Application.Mappings
         {
             CreateMap<Pagamento, PagamentoResponseDto>();
 
-            CreateMap<PagamentoCreateDto, Pagamento>()
-                .ForMember(dest => dest.DataPagamento, opt => opt.MapFrom(_ => DateTime.UtcNow))
-                .ForMember(dest => dest.Status, opt => opt.MapFrom(_ => "Pendente"));
+            CreateMap<Pagamento, PagamentoResponseDto>()
+            .ForMember(dest => dest.DataPagamento, opt =>
+                opt.MapFrom(src => src.Historicos
+                    .Where(h => h.Status == StatusPagamento.Aprovado)
+                    .OrderBy(h => h.Data)
+                    .FirstOrDefault().Data))
+            .ForMember(dest => dest.CodigoTransacao, opt => opt.MapFrom(src => src.CodigoTransacao));
+
 
             CreateMap<PagamentoUpdateDto, Pagamento>();
         }

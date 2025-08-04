@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using SecretariaConcafras.Application.DTOs.Cursos;
 using SecretariaConcafras.Application.DTOs.Eventos;
 using SecretariaConcafras.Domain.Entities;
 using static System.Runtime.InteropServices.JavaScript.JSType;

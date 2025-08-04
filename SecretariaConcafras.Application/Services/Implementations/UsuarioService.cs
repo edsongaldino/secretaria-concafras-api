@@ -1,64 +1,66 @@
-using SecretariaConcafras.Application.DTOs;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using SecretariaConcafras.Application.DTOs.Usuarios;
 using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Domain.Entities;
 using SecretariaConcafras.Domain.Interfaces;
-using SecretariaConcafras.SharedKernel.Security;
 
-namespace SecretariaConcafras.Application.Services.Implementations;
-
-public class UsuarioService : IUsuarioService
+namespace SecretariaConcafras.Application.Services
 {
-    private readonly IUsuarioRepository _repo;
-    private readonly ITokenService _tokenService;
-
-    public UsuarioService(IUsuarioRepository repo, ITokenService tokenService)
+    public class UsuarioService : IUsuarioService
     {
-        _repo = repo;
-        _tokenService = tokenService;
-    }
+        private readonly IRepository<Usuario> _repository;
+        private readonly IMapper _mapper;
 
-    public async Task<IEnumerable<UsuarioDto>> ObterTodosAsync() =>
-        (await _repo.ObterTodosAsync()).Select(u => new UsuarioDto {
-            Id = u.Id, Nome = u.Nome, Email = u.Email, Telefone = u.Telefone
-        });
+        public UsuarioService(IRepository<Usuario> repository, IMapper mapper)
+        {
+            _repository = repository;
+            _mapper = mapper;
+        }
 
-    public async Task<UsuarioDto> ObterPorIdAsync(Guid id)
-    {
-        var u = await _repo.ObterPorIdAsync(id);
-        return u == null ? null : new UsuarioDto { Id = u.Id, Nome = u.Nome, Email = u.Email, Telefone = u.Telefone };
-    }
+        public async Task<IEnumerable<UsuarioResponseDto>> GetAllAsync()
+        {
+            var usuarios = await _repository.GetAllAsync();
+            return _mapper.Map<IEnumerable<UsuarioResponseDto>>(usuarios);
+        }
 
-    public async Task<UsuarioDto> CriarAsync(UsuarioDto dto)
-    {
-        var u = new Usuario {
-            Id = Guid.NewGuid(),
-            Nome = dto.Nome,
-            Email = dto.Email,
-            Telefone = dto.Telefone,
-            Senha = "123456" // Idealmente usar hash e vir da API
-        };
-        await _repo.CriarAsync(u);
-        dto.Id = u.Id;
-        return dto;
-    }
+        public async Task<UsuarioResponseDto?> GetByIdAsync(Guid id)
+        {
+            var usuario = await _repository.GetByIdAsync(id);
+            return _mapper.Map<UsuarioResponseDto?>(usuario);
+        }
 
-    public async Task<UsuarioDto> AtualizarAsync(Guid id, UsuarioDto dto)
-    {
-        var u = await _repo.ObterPorIdAsync(id);
-        if (u == null) return null;
+        public async Task<UsuarioResponseDto> CreateAsync(UsuarioCreateDto dto)
+        {
+            var usuario = _mapper.Map<Usuario>(dto);
+            await _repository.AddAsync(usuario);
+            return _mapper.Map<UsuarioResponseDto>(usuario);
+        }
 
-        u.Nome = dto.Nome;
-        u.Email = dto.Email;
-        u.Telefone = dto.Telefone;
-        await _repo.AtualizarAsync(u);
-        return dto;
-    }
+        public async Task<bool> UpdateAsync(Guid id, UsuarioUpdateDto dto)
+        {
+            var usuario = await _repository.GetByIdAsync(id);
+            if (usuario == null) return false;
 
-    public async Task<bool> RemoverAsync(Guid id) => await _repo.RemoverAsync(id);
+            _mapper.Map(dto, usuario);
+            await _repository.UpdateAsync(usuario);
+            return true;
+        }
 
-    public async Task<string> AutenticarAsync(LoginDto login)
-    {
-        var usuario = await _repo.ObterPorEmailSenhaAsync(login.Email, login.Senha);
-        return usuario != null ? _tokenService.GerarToken(usuario) : null;
+        public async Task<bool> DeleteAsync(Guid id)
+        {
+            var usuario = await _repository.GetByIdAsync(id);
+            if (usuario == null) return false;
+
+            await _repository.DeleteAsync(usuario);
+            return true;
+        }
+
+        public async Task<UsuarioResponseDto?> LoginAsync(string email, string senha)
+        {
+            var usuarios = await _repository.FindAsync(u => u.Email == email && u.Senha == senha);
+            var usuario = usuarios.FirstOrDefault();
+            return _mapper.Map<UsuarioResponseDto?>(usuario);
+        }
     }
 }

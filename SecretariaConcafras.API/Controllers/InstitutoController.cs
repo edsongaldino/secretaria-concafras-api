@@ -38,9 +38,7 @@ namespace SecretariaConcafras.API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Atualizar(Guid id, [FromBody] InstitutoUpdateDto dto)
         {
-            if (id != dto.Id) return BadRequest();
-
-            var result = await _service.AtualizarAsync(dto);
+            var result = await _service.AtualizarAsync(id, dto);
             if (result == null) return NotFound();
             return Ok(result);
         }
@@ -48,7 +46,7 @@ namespace SecretariaConcafras.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Remover(Guid id)
         {
-            var result = await _service.RemoverAsync(id);
+            var result = await _service.DeletarAsync(id);
             if (!result) return NotFound();
             return NoContent();
         }

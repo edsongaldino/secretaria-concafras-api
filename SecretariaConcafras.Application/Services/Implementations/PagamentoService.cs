@@ -2,13 +2,13 @@
 using SecretariaConcafras.Application.DTOs.Pagamentos;
 using SecretariaConcafras.Application.Interfaces;
 using SecretariaConcafras.Domain.Entities;
-using SecretariaConcafras.Infrastructure.Repositories;
+using SecretariaConcafras.Domain.Interfaces;
 
 namespace SecretariaConcafras.Application.Services
 {
     public class PagamentoService : IPagamentoService
     {
-        private readonly IRepository<Pagamento> _repository;
+        private readonly Domain.Interfaces.IRepository<Pagamento> _repository;
         private readonly IMapper _mapper;
 
         public PagamentoService(IRepository<Pagamento> repository, IMapper mapper)

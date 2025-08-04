@@ -1,13 +1,10 @@
 using SecretariaConcafras.Domain.Entities;
 
-namespace SecretariaConcafras.Domain.Interfaces;
-
-public interface IUsuarioRepository
+namespace SecretariaConcafras.Domain.Interfaces
 {
-    Task<IEnumerable<Usuario>> ObterTodosAsync();
-    Task<Usuario> ObterPorIdAsync(Guid id);
-    Task<Usuario> CriarAsync(Usuario usuario);
-    Task<Usuario> AtualizarAsync(Usuario usuario);
-    Task<bool> RemoverAsync(Guid id);
-    Task<Usuario> ObterPorEmailSenhaAsync(string email, string senha);
+    public interface IUsuarioRepository : IRepository<Usuario>
+    {
+        // Aqui ficam apenas métodos específicos de usuário
+        Task<Usuario?> ObterPorEmailSenhaAsync(string email, string senha);
+    }
 }

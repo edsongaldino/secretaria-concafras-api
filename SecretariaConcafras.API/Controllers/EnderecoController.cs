@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SecretariaConcafras.Domain.Entities;
-using SecretariaConcafras.Infrastructure.Context;
-using System;
+using SecretariaConcafras.Infrastructure;
 
 namespace SecretariaConcafras.API.Controllers
 {
@@ -10,9 +9,9 @@ namespace SecretariaConcafras.API.Controllers
     [Route("api/[controller]")]
     public class EnderecoController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly ApplicationDbContext _context;
 
-        public EnderecoController(AppDbContext context)
+        public EnderecoController(ApplicationDbContext context)
         {
             _context = context;
         }

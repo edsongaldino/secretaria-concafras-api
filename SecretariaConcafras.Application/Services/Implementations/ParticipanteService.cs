@@ -3,17 +3,17 @@ using Microsoft.EntityFrameworkCore;
 using SecretariaConcafras.Application.DTOs.Participantes;
 using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Domain.Entities;
-using SecretariaConcafras.Infrastructure.Context;
+using SecretariaConcafras.Infrastructure;
 using System;
 
 namespace SecretariaConcafras.Application.Services.Implementations
 {
     public class ParticipanteService : IParticipanteService
     {
-        private readonly AppDbContext _context;
+        private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
 
-        public ParticipanteService(AppDbContext context, IMapper mapper)
+        public ParticipanteService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;
