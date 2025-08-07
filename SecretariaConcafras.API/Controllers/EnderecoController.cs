@@ -29,11 +29,14 @@ namespace SecretariaConcafras.API.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Endereco endereco)
+        public async Task<IActionResult> Create([FromBody] EnderecoRequest endereco)
         {
-            _context.Enderecos.Add(endereco);
+
+            var newEndereco = endereco.ToEntity();
+
+            _context.Enderecos.Add(newEndereco);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetById), new { id = endereco.Id }, endereco);
+            return CreatedAtAction(nameof(GetById), new { id = newEndereco.Id }, newEndereco);
         }
     }
 }
