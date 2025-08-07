@@ -26,5 +26,23 @@ namespace SecretariaConcafras.API.Controllers
 
             return Ok(cidades);
         }
-    }
+
+		[HttpGet("buscar")]
+		public async Task<IActionResult> BuscarPorNomeEUf(string nome, string uf)
+		{
+			var cidade = await _context.Cidades
+				.Include(c => c.Estado)
+				.FirstOrDefaultAsync(c => c.Nome == nome && c.Estado.Sigla == uf);
+
+			if (cidade == null)
+				return NotFound();
+
+			return Ok(new
+			{
+				id = cidade.Id,
+				nome = cidade.Nome,
+				estado = new { cidade.Estado.Nome, cidade.Estado.Sigla }
+			});
+		}
+	}
 }
