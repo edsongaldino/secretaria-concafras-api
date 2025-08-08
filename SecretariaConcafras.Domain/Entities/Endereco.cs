@@ -7,9 +7,8 @@ public class Endereco
     public string Numero { get; set; }
     public string? Complemento { get; set; }
     public string Bairro { get; set; }
-
-    public Guid CidadeId { get; set; }
-    public Cidade Cidade { get; set; }
+    public string Cidade { get; set; }
+    public string Estado { get; set; }
 }
 
 public class EnderecoRequest
@@ -18,17 +17,20 @@ public class EnderecoRequest
     public string Numero { get; set; } = null!;
     public string? Complemento { get; set; }
     public string Bairro { get; set; } = null!;
-    public Guid CidadeId { get; set; }
+    public string Cidade { get; set; }
+    public string Estado { get; set; }
 
     public Endereco ToEntity()
     {
         return new Endereco
         {
+            Id = new Guid(),
             Logradouro = this.Logradouro,
             Numero = this.Numero,
             Complemento = this.Complemento,
             Bairro = this.Bairro,
-            CidadeId = this.CidadeId
+            Cidade = this.Cidade,
+            Estado = this.Estado
         };
     }
 }

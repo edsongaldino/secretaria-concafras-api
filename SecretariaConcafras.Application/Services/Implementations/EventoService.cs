@@ -21,9 +21,35 @@ namespace SecretariaConcafras.Application.Services.Implementations
 
         public async Task<EventoResponseDto> CriarAsync(EventoCreateDto dto)
         {
+            using var tx = await _context.Database.BeginTransactionAsync();
+
+            Guid enderecoId;
+            if (dto.EnderecoId.HasValue)
+            {
+                var exists = await _context.Enderecos.AnyAsync(e => e.Id == dto.EnderecoId.Value);
+                if (!exists) throw new ArgumentException("EnderecoId informado não existe.");
+                enderecoId = dto.EnderecoId.Value;
+            }
+            else if (dto.Endereco is not null)
+            {
+                var endereco = _mapper.Map<Endereco>(dto.Endereco);
+                _context.Enderecos.Add(endereco);
+                await _context.SaveChangesAsync();
+                enderecoId = endereco.Id;
+            }
+            else
+            {
+                throw new ArgumentException("Informe EnderecoId ou o objeto Endereco.");
+            }
+
             var entity = _mapper.Map<Evento>(dto);
+            entity.EnderecoId = enderecoId;
+            entity.Endereco = null!;
+
             _context.Eventos.Add(entity);
             await _context.SaveChangesAsync();
+            await tx.CommitAsync();
+
             return _mapper.Map<EventoResponseDto>(entity);
         }
 
@@ -53,7 +79,7 @@ namespace SecretariaConcafras.Application.Services.Implementations
         {
             var entity = await _context.Eventos
                 .Include(e => e.Cursos).ThenInclude(c => c.Instituto)
-                .Include(e => e.Endereco).ThenInclude(en => en.Cidade).ThenInclude(c => c.Estado)
+                .Include(e => e.Endereco)
                 .FirstOrDefaultAsync(e => e.Id == id);
 
             return entity == null ? null : _mapper.Map<EventoResponseDto>(entity);
@@ -63,7 +89,7 @@ namespace SecretariaConcafras.Application.Services.Implementations
         {
             var entities = await _context.Eventos
                 .Include(e => e.Cursos).ThenInclude(c => c.Instituto)
-                .Include(e => e.Endereco).ThenInclude(en => en.Cidade).ThenInclude(c => c.Estado)
+                .Include(e => e.Endereco)
                 .ToListAsync();
 
             return _mapper.Map<IEnumerable<EventoResponseDto>>(entities);

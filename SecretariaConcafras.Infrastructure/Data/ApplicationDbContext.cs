@@ -32,30 +32,6 @@ namespace SecretariaConcafras.Infrastructure
 
         public DbSet<Instituicao> Instituicoes { get; set; }
         public DbSet<Endereco> Enderecos { get; set; }
-        public DbSet<Cidade> Cidades { get; set; }
-        public DbSet<Estado> Estados { get; set; }
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
-            base.OnModelCreating(modelBuilder);
-
-            modelBuilder.Entity<Estado>().HasData(
-                new Estado { Id = Guid.Parse("11111111-1111-1111-1111-111111111111"), Nome = "São Paulo", Sigla = "SP" },
-                new Estado { Id = Guid.Parse("22222222-2222-2222-2222-222222222222"), Nome = "Minas Gerais", Sigla = "MG" }
-            );
-
-            modelBuilder.Entity<Cidade>().HasData(
-                // Cidades de SP
-                new Cidade { Id = Guid.Parse("aaaa1111-1111-1111-1111-111111111111"), Nome = "São Paulo", EstadoId = Guid.Parse("11111111-1111-1111-1111-111111111111") },
-                new Cidade { Id = Guid.Parse("aaaa2222-2222-2222-2222-222222222222"), Nome = "Campinas", EstadoId = Guid.Parse("11111111-1111-1111-1111-111111111111") },
-
-                // Cidades de MG
-                new Cidade { Id = Guid.Parse("bbbb1111-1111-1111-1111-111111111111"), Nome = "Belo Horizonte", EstadoId = Guid.Parse("22222222-2222-2222-2222-222222222222") },
-                new Cidade { Id = Guid.Parse("bbbb2222-2222-2222-2222-222222222222"), Nome = "Uberlândia", EstadoId = Guid.Parse("22222222-2222-2222-2222-222222222222") }
-            );
-
-
-        }
+        
     }
 }

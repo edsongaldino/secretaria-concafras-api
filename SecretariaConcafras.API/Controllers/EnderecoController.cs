@@ -19,10 +19,7 @@ namespace SecretariaConcafras.API.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
-            var endereco = await _context.Enderecos
-                .Include(e => e.Cidade)
-                    .ThenInclude(c => c.Estado)
-                .FirstOrDefaultAsync(e => e.Id == id);
+            var endereco = await _context.Enderecos.FirstOrDefaultAsync(e => e.Id == id);
 
             if (endereco == null) return NotFound();
             return Ok(endereco);

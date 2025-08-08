@@ -1,54 +1,13 @@
 ﻿using AutoMapper;
 using Microsoft.EntityFrameworkCore;
-using SecretariaConcafras.Application.DTOs.Cidades;
 using SecretariaConcafras.Application.DTOs.Enderecos;
-using SecretariaConcafras.Application.DTOs.Estados;
 using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Domain.Entities;
 using SecretariaConcafras.Infrastructure;
 using System;
 
 namespace SecretariaConcafras.Application.Services.Implementations
-{
-    public class EstadoService : IEstadoService
-    {
-        private readonly ApplicationDbContext _context;
-        private readonly IMapper _mapper;
-
-        public EstadoService(ApplicationDbContext context, IMapper mapper)
-        {
-            _context = context;
-            _mapper = mapper;
-        }
-
-        public async Task<IEnumerable<EstadoResponseDto>> ObterTodosAsync()
-        {
-            var estados = await _context.Estados.OrderBy(e => e.Nome).ToListAsync();
-            return _mapper.Map<IEnumerable<EstadoResponseDto>>(estados);
-        }
-    }
-
-    public class CidadeService : ICidadeService
-    {
-        private readonly ApplicationDbContext _context;
-        private readonly IMapper _mapper;
-
-        public CidadeService(ApplicationDbContext context, IMapper mapper)
-        {
-            _context = context;
-            _mapper = mapper;
-        }
-
-        public async Task<IEnumerable<CidadeResponseDto>> ObterPorEstadoAsync(Guid estadoId)
-        {
-            var cidades = await _context.Cidades
-                .Where(c => c.EstadoId == estadoId)
-                .OrderBy(c => c.Nome)
-                .ToListAsync();
-
-            return _mapper.Map<IEnumerable<CidadeResponseDto>>(cidades);
-        }
-    }
+{   
 
     public class EnderecoService : IEnderecoService
     {
@@ -71,10 +30,7 @@ namespace SecretariaConcafras.Application.Services.Implementations
 
         public async Task<EnderecoResponseDto?> ObterPorIdAsync(Guid id)
         {
-            var entity = await _context.Enderecos
-                .Include(e => e.Cidade)
-                    .ThenInclude(c => c.Estado)
-                .FirstOrDefaultAsync(e => e.Id == id);
+            var entity = await _context.Enderecos.FirstOrDefaultAsync(e => e.Id == id);
 
             return entity == null ? null : _mapper.Map<EnderecoResponseDto>(entity);
         }

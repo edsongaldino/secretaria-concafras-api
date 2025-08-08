@@ -54,8 +54,6 @@ namespace SecretariaConcafras.Application.Services.Implementations
                 .Include(p => p.Responsavel)
                 .Include(p => p.Instituicao)
                 .Include(p => p.Endereco)
-                    .ThenInclude(e => e.Cidade)
-                        .ThenInclude(c => c.Estado)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             return entity == null ? null : _mapper.Map<ParticipanteResponseDto>(entity);
@@ -67,8 +65,6 @@ namespace SecretariaConcafras.Application.Services.Implementations
                 .Include(p => p.Responsavel)
                 .Include(p => p.Instituicao)
                 .Include(p => p.Endereco)
-                    .ThenInclude(e => e.Cidade)
-                        .ThenInclude(c => c.Estado)
                 .ToListAsync();
 
             return _mapper.Map<IEnumerable<ParticipanteResponseDto>>(entities);

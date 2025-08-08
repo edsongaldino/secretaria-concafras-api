@@ -14,8 +14,8 @@ namespace SecretariaConcafras.Application.Mappings
             CreateMap<Participante, ParticipanteResponseDto>()
                 .ForMember(dest => dest.ResponsavelNome, opt => opt.MapFrom(src => src.Responsavel != null ? src.Responsavel.Nome : null))
                 .ForMember(dest => dest.InstituicaoNome, opt => opt.MapFrom(src => src.Instituicao != null ? src.Instituicao.Nome : null))
-                .ForMember(dest => dest.Cidade, opt => opt.MapFrom(src => src.Endereco.Cidade.Nome))
-                .ForMember(dest => dest.Estado, opt => opt.MapFrom(src => src.Endereco.Cidade.Estado.Nome));
+                .ForMember(dest => dest.Cidade, opt => opt.MapFrom(src => src.Endereco.Cidade))
+                .ForMember(dest => dest.Estado, opt => opt.MapFrom(src => src.Endereco.Estado));
         }
     }
 }

@@ -12,7 +12,7 @@ namespace SecretariaConcafras.Domain.Entities
         public decimal ValorInscricaoCrianca { get; set; }
 
         // Endereço
-        public Guid EnderecoId { get; set; }
+        public Guid? EnderecoId { get; set; }
         public Endereco? Endereco { get; set; }
 
         public ICollection<Curso> Cursos { get; set; } = new List<Curso>();
