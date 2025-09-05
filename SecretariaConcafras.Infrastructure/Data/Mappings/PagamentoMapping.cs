@@ -11,15 +11,19 @@ namespace SecretariaConcafras.Infrastructure.Mappings
             builder.ToTable("pagamentos");
             builder.HasKey(x => x.Id).HasName("pk_pagamentos");
 
+			builder.Property(x => x.InscricaoId).HasColumnName("inscricao_id");
+			builder.Property(x => x.Valor).HasColumnName("valor");
+			builder.Property(x => x.DataCriacao).HasColumnName("data_criacao");
+			builder.Property(x => x.Status).HasColumnName("status");
+			builder.Property(x => x.CodigoTransacao).HasColumnName("codigo_transacao");
+			builder.Property(x => x.MetodoPagamento).HasColumnName("metodo_pagamento");
+			builder.Property(x => x.QrCodePix).HasColumnName("qrcode_pix");
 
-            builder.HasOne<Inscricao>()
-            .WithMany()
-            .HasForeignKey(x => x.InscricaoId)
-            .OnDelete(DeleteBehavior.Cascade)
-            .HasConstraintName("fk_pagamentos__inscricoes__inscricao_id");
-
-
-            builder.HasIndex(x => x.InscricaoId).HasDatabaseName("ix_pagamentos__inscricao_id");
-        }
+			builder.HasOne(x => x.Inscricao)
+			 .WithMany(i => i.Pagamentos)
+			 .HasForeignKey(x => x.InscricaoId)
+			 .HasConstraintName("fk_pagamentos_inscricoes_inscricao_id")
+			 .OnDelete(DeleteBehavior.Cascade); // opcional
+		}
     }
 }
