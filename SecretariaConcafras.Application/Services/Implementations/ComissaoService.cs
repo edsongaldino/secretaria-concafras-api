@@ -58,34 +58,22 @@ namespace SecretariaConcafras.Application.Services
             return true;
         }
 
-        public async Task<ComissaoDto?> ObterPorIdAsync(Guid id)
-        {
-            return await _db.Set<Comissao>()
-                .AsNoTracking()
-                .Where(c => c.Id == id)
-                .Select(c => new ComissaoDto
-                {
-                    Id = c.Id,
-                    Nome = c.Nome,
-                    Slug = c.Slug,
-                    Ativa = c.Ativa
-                })
-                .FirstOrDefaultAsync();
-        }
+		public async Task<ComissaoDto?> ObterPorIdAsync(Guid id)
+		{
+			return await _db.Set<Comissao>()
+				.AsNoTracking()
+				.Where(c => c.Id == id)
+				.Select(c => new ComissaoDto(c.Id, c.Nome, c.Slug, c.Ativa))
+				.FirstOrDefaultAsync();
+		}
 
-        public async Task<IEnumerable<ComissaoDto>> ObterTodosAsync()
-        {
-            return await _db.Set<Comissao>()
-                .AsNoTracking()
-                .OrderBy(c => c.Nome)
-                .Select(c => new ComissaoDto
-                {
-                    Id = c.Id,
-                    Nome = c.Nome,
-                    Slug = c.Slug,
-                    Ativa = c.Ativa
-                })
-                .ToListAsync();
-        }
-    }
+		public async Task<IEnumerable<ComissaoDto>> ObterTodosAsync()
+		{
+			return await _db.Set<Comissao>()
+				.AsNoTracking()
+				.OrderBy(c => c.Nome)
+				.Select(c => new ComissaoDto(c.Id, c.Nome, c.Slug, c.Ativa))
+				.ToListAsync();
+		}
+	}
 }

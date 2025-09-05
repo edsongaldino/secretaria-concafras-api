@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿// Controllers/ComissoesEventoController.cs  (trechos novos/simplificados)
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SecretariaConcafras.Domain.Entities; // ComissaoEvento, Comissao, Usuario, InscricaoTrabalhador, Inscricao, UsuarioRole
+using SecretariaConcafras.Application.DTOs.Comissoes;
+using SecretariaConcafras.Domain.Entities;
 using SecretariaConcafras.Infrastructure;
-using System.ComponentModel.DataAnnotations;
 using System.Net.Mime;
 
 namespace SecretariaConcafras.API.Controllers;
@@ -12,201 +13,118 @@ namespace SecretariaConcafras.API.Controllers;
 [Produces(MediaTypeNames.Application.Json)]
 public class ComissoesEventoController : ControllerBase
 {
-    private readonly ApplicationDbContext _db;
-    public ComissoesEventoController(ApplicationDbContext db) => _db = db;
+	private readonly ApplicationDbContext _db;
+	public ComissoesEventoController(ApplicationDbContext db) => _db = db;
 
-    // GET /api/comissoes-evento?eventoId=...
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<ComissaoEventoDto>>> ListarPorEvento([FromQuery] Guid eventoId, CancellationToken ct)
-    {
-        if (eventoId == Guid.Empty) return BadRequest("eventoId é obrigatório.");
+	// GET /api/comissoes-evento?eventoId=...&q=...&skip=0&take=100
+	// Lista leve (sem usuários / sem inscritos)
+	[HttpGet]
+	public async Task<ActionResult<IEnumerable<ComissaoEventoListItemDto>>> ListarLeve(
+		[FromQuery] Guid eventoId,
+		[FromQuery] string? q,
+		[FromQuery] int skip = 0,
+		[FromQuery] int take = 100,
+		CancellationToken ct = default)
+	{
+		if (eventoId == Guid.Empty) return BadRequest("eventoId é obrigatório.");
 
-        var data = await _db.Set<ComissaoEvento>()
-            .AsNoTracking()
-            .Where(ce => ce.EventoId == eventoId)
-            .OrderBy(ce => ce.Comissao.Nome)
-            .Select(ce => new ComissaoEventoDto(
-                ce.Id,
-                ce.EventoId,
-                ce.ComissaoId,
-                new ComissaoDto(ce.Comissao.Id, ce.Comissao.Nome, ce.Comissao.Slug, ce.Comissao.Ativa),
-                ce.CoordenadorUsuarioId,
-                ce.CoordenadorUsuario != null ? new UsuarioSlimDto(ce.CoordenadorUsuario.Id, ce.CoordenadorUsuario.Nome, ce.CoordenadorUsuario.Email) : null,
-                ce.Observacoes,
-                ce.InscricoesTrabalhadores.Select(it => new InscricaoTrabalhadorDto(
-                    it.Id,
-                    it.InscricaoId,
-                    it.ComissaoEventoId,
-                    it.Nivel,
-                    new InscricaoSlimDto(
-                        it.Inscricao.Id,
-                        it.Inscricao.ParticipanteId,
-                        it.Inscricao.Participante.Nome
-                    )
-                )).ToList(),
-                ce.UsuarioRoles.Select(ur => new UsuarioRoleDto(
-                    ur.Id,
-                    ur.UsuarioId,
-                    ur.Role,
-                    ur.EventoId,
-                    ur.ComissaoEventoId,
-                    new UsuarioSlimDto(ur.Usuario.Id, ur.Usuario.Nome, ur.Usuario.Email)
-                )).ToList()
-            ))
-            .ToListAsync(ct);
+		var query = _db.Set<ComissaoEvento>()
+			.AsNoTracking()
+			.Where(ce => ce.EventoId == eventoId);
 
-        return Ok(data);
-    }
+		if (!string.IsNullOrWhiteSpace(q))
+		{
+			var term = q.Trim().ToLower();
+			query = query.Where(ce => EF.Functions.ILike(ce.Comissao.Nome, $"%{term}%"));
+		}
 
-    // GET /api/comissoes-evento/{id}
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<ComissaoEventoDto>> Obter(Guid id, CancellationToken ct)
-    {
-        var ce = await _db.Set<ComissaoEvento>()
-            .AsNoTracking()
-            .Where(x => x.Id == id)
-            .Select(ce => new ComissaoEventoDto(
-                ce.Id,
-                ce.EventoId,
-                ce.ComissaoId,
-                new ComissaoDto(ce.Comissao.Id, ce.Comissao.Nome, ce.Comissao.Slug, ce.Comissao.Ativa),
-                ce.CoordenadorUsuarioId,
-                ce.CoordenadorUsuario != null ? new UsuarioSlimDto(ce.CoordenadorUsuario.Id, ce.CoordenadorUsuario.Nome, ce.CoordenadorUsuario.Email) : null,
-                ce.Observacoes,
-                ce.InscricoesTrabalhadores.Select(it => new InscricaoTrabalhadorDto(
-                    it.Id, it.InscricaoId, it.ComissaoEventoId, it.Nivel,
-                    new InscricaoSlimDto(it.Inscricao.Id, it.Inscricao.ParticipanteId, it.Inscricao.Participante.Nome)
-                )).ToList(),
-                ce.UsuarioRoles.Select(ur => new UsuarioRoleDto(
-                    ur.Id, ur.UsuarioId, ur.Role, ur.EventoId, ur.ComissaoEventoId,
-                    new UsuarioSlimDto(ur.Usuario.Id, ur.Usuario.Nome, ur.Usuario.Email)
-                )).ToList()
-            ))
-            .FirstOrDefaultAsync(ct);
+		var data = await query
+			.OrderBy(ce => ce.Comissao.Nome)
+			.Skip(skip).Take(take)
+			.Select(ce => new ComissaoEventoListItemDto
+			{
+				Id = ce.Id,
+				EventoId = ce.EventoId,
+				ComissaoId = ce.ComissaoId,
+				ComissaoNome = ce.Comissao.Nome,
+				Observacoes = ce.Observacoes
+			})
+			.ToListAsync(ct);
 
-        if (ce is null) return NotFound();
-        return Ok(ce);
-    }
+		return Ok(data);
+	}
 
-    // POST /api/comissoes-evento
-    // Cria vínculos de comissões do catálogo para um evento (uma ou várias)
-    [HttpPost]
-    public async Task<IActionResult> CriarParaEvento([FromBody] CriarComissoesParaEventoRequest body, CancellationToken ct)
-    {
-        if (body.EventoId == Guid.Empty) return BadRequest("EventoId é obrigatório.");
-        if (body.ComissaoIds is null || !body.ComissaoIds.Any()) return BadRequest("Informe ao menos uma comissão.");
+	// (opcional) GET /api/comissoes-evento/contagens?eventoId=...
+	// Devolve só as contagens para badges (sem expandir coleções)
+	[HttpGet("contagens")]
+	public async Task<ActionResult<IEnumerable<ComissaoEventoCountsDto>>> Contagens(
+		[FromQuery] Guid eventoId,
+		CancellationToken ct = default)
+	{
+		if (eventoId == Guid.Empty) return BadRequest("eventoId é obrigatório.");
 
-        // carrega existentes para evitar duplicar
-        var existentes = await _db.Set<ComissaoEvento>()
-            .Where(ce => ce.EventoId == body.EventoId && body.ComissaoIds.Contains(ce.ComissaoId))
-            .Select(ce => ce.ComissaoId)
-            .ToListAsync(ct);
+		var data = await _db.Set<ComissaoEvento>()
+			.AsNoTracking()
+			.Where(ce => ce.EventoId == eventoId)
+			.Select(ce => new ComissaoEventoCountsDto
+			{
+				ComissaoEventoId = ce.Id,
+				QtdInscritosTrabalhador = ce.InscricoesTrabalhadores.Count(),
+				QtdUsuarioRoles = ce.UsuarioRoles.Count()
+			})
+			.ToListAsync(ct);
 
-        var coordMap = (body.Coordenadores ?? Array.Empty<CoordenadorVinculo>()).ToDictionary(x => x.ComissaoId, x => x.UsuarioId);
+		return Ok(data);
+	}
 
-        foreach (var comissaoId in body.ComissaoIds.Distinct())
-        {
-            if (existentes.Contains(comissaoId)) continue;
+	// (opcional) GET /api/comissoes-evento/{id}/inscricoes
+	[HttpGet("{id:guid}/inscricoes")]
+	public async Task<ActionResult<IEnumerable<InscricaoTrabalhadorSlimDto>>> ListarInscricoes(Guid id, CancellationToken ct)
+	{
+		var data = await _db.Set<InscricaoTrabalhador>()
+			.AsNoTracking()
+			.Where(it => it.ComissaoEventoId == id)
+			.Select(it => new InscricaoTrabalhadorSlimDto
+			{
+				Id = it.Id,
+				InscricaoId = it.InscricaoId,
+				ComissaoEventoId = it.ComissaoEventoId,
+				Nivel = (int)it.Nivel,
+				Inscricao = new InscricaoSlimDto
+				{
+					Id = it.Inscricao.Id,
+					ParticipanteId = it.Inscricao.ParticipanteId,
+					ParticipanteNome = it.Inscricao.Participante.Nome
+				}
+			})
+			.ToListAsync(ct);
 
-            var ce = new ComissaoEvento
-            {
-                Id = Guid.NewGuid(),
-                EventoId = body.EventoId,
-                ComissaoId = comissaoId,
-                CoordenadorUsuarioId = coordMap.TryGetValue(comissaoId, out var uId) ? uId : null
-            };
+		return Ok(data);
+	}
 
-            _db.Add(ce);
-        }
+	// (opcional) GET /api/comissoes-evento/{id}/usuarios
+	[HttpGet("{id:guid}/usuarios")]
+	public async Task<ActionResult<IEnumerable<UsuarioRoleSlimDto>>> ListarUsuarios(Guid id, CancellationToken ct)
+	{
+		var data = await _db.Set<UsuarioRole>()
+			.AsNoTracking()
+			.Where(ur => ur.ComissaoEventoId == id)
+			.Select(ur => new UsuarioRoleSlimDto
+			{
+				Id = ur.Id,
+				UsuarioId = ur.UsuarioId,
+				Role = (int)ur.Role,
+				EventoId = ur.EventoId,
+				ComissaoEventoId = ur.ComissaoEventoId,
+				Usuario = new UsuarioSlimDto
+				{
+					Id = ur.Usuario.Id,
+					Nome = ur.Usuario.Nome,
+					Email = ur.Usuario.Email
+				}
+			})
+			.ToListAsync(ct);
 
-        await _db.SaveChangesAsync(ct);
-        return NoContent();
-    }
-
-    // PUT /api/comissoes-evento/{id}/coordenador
-    [HttpPut("{id:guid}/coordenador")]
-    public async Task<IActionResult> AtualizarCoordenador(Guid id, [FromBody] AtualizarCoordenadorRequest body, CancellationToken ct)
-    {
-        var ce = await _db.Set<ComissaoEvento>().FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (ce is null) return NotFound();
-
-        // opcionalmente validar se o usuário existe quando informado
-        if (body.UsuarioId is { } uid && uid != Guid.Empty)
-        {
-            var exists = await _db.Set<Usuario>().AnyAsync(u => u.Id == uid, ct);
-            if (!exists) return BadRequest("Usuário não encontrado.");
-            ce.CoordenadorUsuarioId = uid;
-        }
-        else
-        {
-            ce.CoordenadorUsuarioId = null;
-        }
-
-        await _db.SaveChangesAsync(ct);
-        return NoContent();
-    }
-
-    // PUT /api/comissoes-evento/{id}
-    [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Atualizar(Guid id, [FromBody] AtualizarComissaoEventoRequest body, CancellationToken ct)
-    {
-        var ce = await _db.Set<ComissaoEvento>().FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (ce is null) return NotFound();
-
-        ce.Observacoes = body.Observacoes;
-
-        if (body.CoordenadorUsuarioId.HasValue)
-        {
-            var uid = body.CoordenadorUsuarioId.Value;
-            if (uid != Guid.Empty && !await _db.Set<Usuario>().AnyAsync(u => u.Id == uid, ct))
-                return BadRequest("Usuário coordenador não encontrado.");
-            ce.CoordenadorUsuarioId = uid == Guid.Empty ? null : uid;
-        }
-
-        await _db.SaveChangesAsync(ct);
-        return NoContent();
-    }
-
-    // DELETE /api/comissoes-evento/{id}
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Excluir(Guid id, CancellationToken ct)
-    {
-        var ce = await _db.Set<ComissaoEvento>().FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (ce is null) return NotFound();
-
-        _db.Remove(ce);
-        await _db.SaveChangesAsync(ct);
-        return NoContent();
-    }
+		return Ok(data);
+	}
 }
-
-/* ===== DTOs ===== */
-
-
-public record ComissaoDto(Guid Id, string Nome, string? Slug, bool Ativa);
-public record UsuarioSlimDto(Guid Id, string Nome, string Email);
-
-public record InscricaoTrabalhadorDto(
-    Guid Id,
-    Guid InscricaoId,
-    Guid ComissaoEventoId,
-    int Nivel, // se você serializa enum como string, troque para string
-    InscricaoSlimDto Inscricao
-);
-
-public record InscricaoSlimDto(Guid Id, Guid ParticipanteId, string ParticipanteNome);
-
-public record UsuarioRoleDto(Guid Id, Guid UsuarioId, int Role, Guid? EventoId, Guid? ComissaoEventoId, UsuarioSlimDto Usuario);
-
-/* ===== Requests ===== */
-public record CriarComissoesParaEventoRequest(
-    [Required] Guid EventoId,
-    [Required] IEnumerable<Guid> ComissaoIds,
-    IEnumerable<CoordenadorVinculo>? Coordenadores
-);
-
-public record CoordenadorVinculo(Guid ComissaoId, Guid UsuarioId);
-
-public record AtualizarCoordenadorRequest(Guid? UsuarioId);
-
-public record AtualizarComissaoEventoRequest(string? Observacoes, Guid? CoordenadorUsuarioId);

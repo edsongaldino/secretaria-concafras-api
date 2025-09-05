@@ -1,14 +1,14 @@
 ﻿// Application/DTOs/Shared/UsuariosEInscricoesSlim.cs
 namespace SecretariaConcafras.Application.DTOs.Comissoes
 {
-    public class UsuarioSlimDto
-    {
-        public Guid Id { get; set; }
-        public string Nome { get; set; } = default!;
-        public string Email { get; set; } = default!;
-    }
+	public class UsuarioSlimDto
+	{
+		public Guid Id { get; set; }
+		public string Nome { get; set; } = default!;
+		public string Email { get; set; } = default!;
+	}
 
-    public class UsuarioRoleSlimDto
+	public class UsuarioRoleSlimDto
     {
         public Guid Id { get; set; }
         public Guid UsuarioId { get; set; }
@@ -20,7 +20,8 @@ namespace SecretariaConcafras.Application.DTOs.Comissoes
 
     public class InscricaoSlimDto
     {
-        public Guid Id { get; set; }
+
+		public Guid Id { get; set; }
         public Guid ParticipanteId { get; set; }
         public string ParticipanteNome { get; set; } = default!;
     }

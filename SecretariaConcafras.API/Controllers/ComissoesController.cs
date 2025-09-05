@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SecretariaConcafras.Application.DTOs.Comissoes;
 using SecretariaConcafras.Domain.Entities; // Comissao
 using SecretariaConcafras.Infrastructure;
 using System.ComponentModel.DataAnnotations;
@@ -49,12 +50,12 @@ public class ComissoesController : ControllerBase
 
     // PUT /api/comissoes/{id}
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Atualizar(Guid id, [FromBody] AtualizarComissaoRequest body, CancellationToken ct)
+    public async Task<IActionResult> Atualizar(Guid id, [FromBody] AtualizarComissaoEventoRequest body, CancellationToken ct)
     {
         var entity = await _db.Set<Comissao>().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (entity is null) return NotFound();
 
-        entity.Nome = body.Nome.Trim();
+        entity.Nome = (string)body.Nome;
         entity.Slug = body.Slug;
         entity.Ativa = body.Ativa;
 
@@ -74,8 +75,3 @@ public class ComissoesController : ControllerBase
         return NoContent();
     }
 }
-
-/* ===== DTOs ===== */
-public record ComissaoDto(Guid Id, string Nome, string? Slug, bool Ativa);
-public record CriarComissaoRequest([Required, MaxLength(120)] string Nome, string? Slug, bool Ativa = true);
-public record AtualizarComissaoRequest([Required, MaxLength(120)] string Nome, string? Slug, bool Ativa = true);
