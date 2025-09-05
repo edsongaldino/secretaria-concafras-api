@@ -1,17 +1,15 @@
-﻿using SecretariaConcafras.Domain.Enums;
+﻿using SecretariaConcafras.Domain.Entities;
+using SecretariaConcafras.Domain.Enums;
 
-namespace SecretariaConcafras.Domain.Entities
+public class InscricaoTrabalhador
 {
-    public class InscricaoTrabalhador
-    {
-        public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.NewGuid();
 
-        public Guid InscricaoId { get; set; }
-        public Inscricao Inscricao { get; set; }
+    public Guid InscricaoId { get; set; }
+    public Inscricao Inscricao { get; set; } = default!;
 
-        public Guid ComissaoTrabalhoId { get; set; }
-        public ComissaoTrabalho ComissaoTrabalho { get; set; }
+    public Guid ComissaoEventoId { get; set; }
+    public ComissaoEvento ComissaoEvento { get; set; } = default!;
 
-        public NivelTrabalhador Nivel { get; set; } = NivelTrabalhador.Voluntario;
-    }
+    public NivelTrabalhador Nivel { get; set; }
 }

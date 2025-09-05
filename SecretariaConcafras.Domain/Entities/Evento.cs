@@ -16,7 +16,9 @@ namespace SecretariaConcafras.Domain.Entities
         public Endereco? Endereco { get; set; }
 
         public ICollection<Curso> Cursos { get; set; } = new List<Curso>();
-        public ICollection<ComissaoTrabalho> Comissoes { get; set; } = new List<ComissaoTrabalho>();
+        public ICollection<ComissaoEvento> ComissoesEvento { get; set; } = new List<ComissaoEvento>();
         public ICollection<Inscricao> Inscricoes { get; set; } = new List<Inscricao>();
+        public ICollection<UsuarioRole> UsuarioRoles { get; set; } = new List<UsuarioRole>();
+
     }
 }

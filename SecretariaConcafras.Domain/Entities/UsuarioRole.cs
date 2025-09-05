@@ -1,21 +1,18 @@
-﻿using SecretariaConcafras.Domain.Enums;
+﻿using SecretariaConcafras.Domain.Entities;
+using SecretariaConcafras.Domain.Enums;
 
-namespace SecretariaConcafras.Domain.Entities
+public class UsuarioRole
 {
-    public class UsuarioRole
-    {
-        public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.NewGuid();
 
-        public Guid UsuarioId { get; set; }
-        public Usuario Usuario { get; set; }
+    public Guid UsuarioId { get; set; }
+    public Usuario Usuario { get; set; } = default!;
 
-        public RoleSistema Role { get; set; }
+    public RoleSistema Role { get; set; }
 
-        // Roles podem ser globais ou vinculadas a um evento/comissão
-        public Guid? EventoId { get; set; }
-        public Evento? Evento { get; set; }
+    public Guid? EventoId { get; set; }
+    public Evento? Evento { get; set; }
 
-        public Guid? ComissaoTrabalhoId { get; set; }
-        public ComissaoTrabalho? ComissaoTrabalho { get; set; }
-    }
+    public Guid? ComissaoEventoId { get; set; }
+    public ComissaoEvento? ComissaoEvento { get; set; }
 }

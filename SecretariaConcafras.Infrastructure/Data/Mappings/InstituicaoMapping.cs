@@ -2,13 +2,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SecretariaConcafras.Domain.Entities;
 
-namespace SecretariaConcafras.Infrastructure.Mappings
+public class InstitutoMapping : IEntityTypeConfiguration<Instituto>
 {
-    public class InstituicaoMapping : IEntityTypeConfiguration<Instituicao>
+    public void Configure(EntityTypeBuilder<Instituto> builder)
     {
-        public void Configure(EntityTypeBuilder<Instituicao> builder)
-        {
-            builder.HasKey(x => x.Id);
-        }
+        builder.ToTable("institutos");
+        builder.HasKey(x => x.Id).HasName("pk_institutos");
+
+        // Se NÃO usa UseSnakeCaseNamingConvention():
+        // builder.Property(x => x.Id).HasColumnName("id");
+
+        builder.Property(x => x.Nome).IsRequired();
     }
 }

@@ -57,4 +57,11 @@
         Voluntario = 1,
         Coordenacao = 2
     }
+
+    public enum PublicoCurso
+    {
+        Crianca = 1,
+        Jovem = 2,
+        Adulto = 3
+    }
 }

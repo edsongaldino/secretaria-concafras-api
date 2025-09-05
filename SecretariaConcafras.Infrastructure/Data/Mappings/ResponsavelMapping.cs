@@ -8,7 +8,11 @@ namespace SecretariaConcafras.Infrastructure.Mappings
     {
         public void Configure(EntityTypeBuilder<Responsavel> builder)
         {
-            builder.HasKey(x => x.Id);
+            builder.ToTable("responsaveis");
+            builder.HasKey(x => x.Id).HasName("pk_responsaveis");
+            builder.Property(x => x.Nome).HasMaxLength(150).IsRequired();
+            builder.Property(x => x.Parentesco).HasMaxLength(50).IsRequired();
+            builder.Property(x => x.Telefone).HasMaxLength(20).IsRequired();
         }
     }
 }

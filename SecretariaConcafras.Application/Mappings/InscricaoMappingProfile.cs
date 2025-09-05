@@ -22,7 +22,7 @@ namespace SecretariaConcafras.Application.Mappings
 
                 // Se for trabalhador em comissão
                 .ForMember(dest => dest.Comissao,
-                    opt => opt.MapFrom(src => src.InscricaoTrabalhador != null ? src.InscricaoTrabalhador.ComissaoTrabalho.Nome : null));
+                    opt => opt.MapFrom(src => src.InscricaoTrabalhador != null ? src.InscricaoTrabalhador.ComissaoEvento.Comissao.Nome : null));
         }
     }
 }

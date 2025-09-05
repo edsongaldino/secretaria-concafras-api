@@ -14,7 +14,7 @@ namespace SecretariaConcafras.Domain.Entities
 
         [Required]
         public Guid ComissaoId { get; set; }
-        public ComissaoTrabalho Comissao { get; set; }
+        public ComissaoEvento Comissao { get; set; }
 
         [Required]
         public PerfilComissao Perfil { get; set; }

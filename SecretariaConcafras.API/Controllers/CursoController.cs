@@ -5,7 +5,7 @@ using SecretariaConcafras.Application.Interfaces.Services;
 namespace SecretariaConcafras.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/curso")]
     public class CursoController : ControllerBase
     {
         private readonly ICursoService _service;
@@ -23,6 +23,14 @@ namespace SecretariaConcafras.API.Controllers
         public async Task<IActionResult> ObterPorId(Guid id)
         {
             var result = await _service.ObterPorIdAsync(id);
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+
+        [HttpGet("obter-por-evento/{eventoId:guid}")]
+        public async Task<IActionResult> ObterPorEventoId(Guid eventoId)
+        {
+            var result = await _service.ObterPorEventoAsync(eventoId);
             if (result == null) return NotFound();
             return Ok(result);
         }

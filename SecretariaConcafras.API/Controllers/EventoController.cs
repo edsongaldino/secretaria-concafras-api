@@ -5,7 +5,7 @@ using SecretariaConcafras.Application.Interfaces.Services;
 namespace SecretariaConcafras.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/evento")]
     public class EventoController : ControllerBase
     {
         private readonly IEventoService _service;

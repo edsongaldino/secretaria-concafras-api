@@ -5,12 +5,12 @@ using SecretariaConcafras.Application.Interfaces.Services;
 namespace SecretariaConcafras.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/comissao-trabalho")]
     public class ComissaoTrabalhoController : ControllerBase
     {
-        private readonly IComissaoTrabalhoService _service;
+        private readonly IComissaoService _service;
 
-        public ComissaoTrabalhoController(IComissaoTrabalhoService service)
+        public ComissaoTrabalhoController(IComissaoService service)
         {
             _service = service;
         }
@@ -23,6 +23,15 @@ namespace SecretariaConcafras.API.Controllers
         public async Task<IActionResult> ObterPorId(Guid id)
         {
             var result = await _service.ObterPorIdAsync(id);
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+
+
+        [HttpGet("obter-por-evento/{eventoId:guid}")]
+        public async Task<IActionResult> ObterPorEventoId(Guid eventoId)
+        {
+            var result = await _service.ObterPorEventoAsync(eventoId);
             if (result == null) return NotFound();
             return Ok(result);
         }

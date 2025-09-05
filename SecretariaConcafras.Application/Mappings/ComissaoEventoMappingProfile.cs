@@ -4,13 +4,13 @@ using SecretariaConcafras.Domain.Entities;
 
 namespace SecretariaConcafras.Application.Mappings
 {
-    public class ComissaoTrabalhoMappingProfile : Profile
+    public class ComissaoEventoMappingProfile : Profile
     {
-        public ComissaoTrabalhoMappingProfile()
+        public ComissaoEventoMappingProfile()
         {
-            CreateMap<ComissaoTrabalho, ComissaoTrabalhoResponseDto>()
+            CreateMap<ComissaoEvento, ComissaoTrabalhoResponseDto>()
                 .ForMember(dest => dest.EventoTitulo, opt => opt.MapFrom(src => src.Evento.Titulo))
-                .ForMember(dest => dest.Usuarios, opt => opt.MapFrom(src => src.Trabalhadores));
+                .ForMember(dest => dest.Usuarios, opt => opt.MapFrom(src => src.InscricoesTrabalhadores));
 
             CreateMap<UsuarioComissao, UsuarioComissaoResponseDto>()
                 .ForMember(dest => dest.UsuarioId, opt => opt.MapFrom(src => src.UsuarioId))
@@ -18,8 +18,8 @@ namespace SecretariaConcafras.Application.Mappings
                 .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Usuario.Email))
                 .ForMember(dest => dest.Perfil, opt => opt.MapFrom(src => src.Perfil.ToString()));
 
-            CreateMap<ComissaoTrabalhoCreateDto, ComissaoTrabalho>();
-            CreateMap<ComissaoTrabalhoUpdateDto, ComissaoTrabalho>();
+            CreateMap<ComissaoEventoDto, ComissaoEvento>();
+            CreateMap<ComissaoEventoUpdateDto, ComissaoEvento>();
         }
     }
 }

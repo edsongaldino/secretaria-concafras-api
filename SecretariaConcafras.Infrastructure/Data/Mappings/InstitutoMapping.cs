@@ -8,7 +8,9 @@ namespace SecretariaConcafras.Infrastructure.Mappings
     {
         public void Configure(EntityTypeBuilder<Instituto> builder)
         {
-            builder.HasKey(x => x.Id);
+            builder.ToTable("institutos");
+            builder.HasKey(x => x.Id).HasName("pk_institutos");
+            builder.Property(x => x.Nome).IsRequired();
         }
     }
 }

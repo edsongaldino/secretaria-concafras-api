@@ -15,18 +15,21 @@ namespace SecretariaConcafras.Domain.Entities
         public string? Descricao { get; set; }
 
         [Required]
-        public BlocoCurso Bloco { get; set; }
+        public BlocoCurso Bloco { get; set; } = BlocoCurso.TemaEspecifico;
 
         [Required]
         public int Vagas { get; set; }
 
         // Relacionamento com Evento
         public Guid EventoId { get; set; }
-        public Evento Evento { get; set; }
+        public Evento Evento { get; set; } = default!;
 
         // Relacionamento com Instituto
         public Guid InstitutoId { get; set; }
-        public Instituto Instituto { get; set; }
+        public Instituto Instituto { get; set; } = default!;
+
+        public PublicoCurso Publico { get; set; } = PublicoCurso.Adulto;
+        public bool Neofito { get; set; } = false;
 
         // Participantes inscritos neste curso
         public ICollection<InscricaoCurso> InscricoesCurso { get; set; } = new List<InscricaoCurso>();

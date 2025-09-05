@@ -1,7 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using SecretariaConcafras.Domain.Entities;
-using SecretariaConcafras.Infrastructure.Mappings;
-using System.Data;
 
 namespace SecretariaConcafras.Infrastructure
 {
@@ -9,6 +7,7 @@ namespace SecretariaConcafras.Infrastructure
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
+        // DbSets podem ficar como estão
         public DbSet<Usuario> Usuarios { get; set; }
         public DbSet<UsuarioRole> UsuarioRoles { get; set; }
         public DbSet<UsuarioComissao> UsuarioComissoes { get; set; }
@@ -19,7 +18,7 @@ namespace SecretariaConcafras.Infrastructure
         public DbSet<Evento> Eventos { get; set; }
         public DbSet<Curso> Cursos { get; set; }
         public DbSet<Instituto> Institutos { get; set; }
-        public DbSet<ComissaoTrabalho> ComissoesTrabalho { get; set; }
+        public DbSet<ComissaoEvento> ComissoesTrabalho { get; set; }
 
         public DbSet<Inscricao> Inscricoes { get; set; }
         public DbSet<InscricaoCurso> InscricoesCursos { get; set; }
@@ -32,6 +31,18 @@ namespace SecretariaConcafras.Infrastructure
 
         public DbSet<Instituicao> Instituicoes { get; set; }
         public DbSet<Endereco> Enderecos { get; set; }
-        
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // schema padrão do seu DDL
+            modelBuilder.HasDefaultSchema("public");
+
+            // aplica TODAS as classes que implementam IEntityTypeConfiguration<>
+            modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+            // Se os mappings estiverem em outro assembly/projeto, aponte por um tipo de lá:
+            // modelBuilder.ApplyConfigurationsFromAssembly(typeof(CursoMapping).Assembly);
+        }
     }
 }

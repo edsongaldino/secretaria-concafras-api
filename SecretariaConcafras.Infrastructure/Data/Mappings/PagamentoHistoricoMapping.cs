@@ -8,7 +8,18 @@ namespace SecretariaConcafras.Infrastructure.Mappings
     {
         public void Configure(EntityTypeBuilder<PagamentoHistorico> builder)
         {
-            builder.HasKey(x => x.Id);
+            builder.ToTable("pagamentos_historico");
+            builder.HasKey(x => x.Id).HasName("pk_pagamentos_historico");
+
+
+            builder.HasOne<Pagamento>()
+            .WithMany()
+            .HasForeignKey(x => x.PagamentoId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .HasConstraintName("fk_pagamentos_historico__pagamentos__pagamento_id");
+
+
+            builder.HasIndex(x => x.PagamentoId).HasDatabaseName("ix_pagamentos_historico__pagamento_id");
         }
     }
 }
