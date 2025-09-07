@@ -6,24 +6,20 @@ public class InscricaoCursoMapping : IEntityTypeConfiguration<InscricaoCurso>
 {
     public void Configure(EntityTypeBuilder<InscricaoCurso> builder)
     {
-        builder.ToTable("inscricoes_curso");
-        builder.HasKey(x => x.Id).HasName("pk_inscricoes_curso");
+        builder.ToTable("inscricoes_curso");                  // <- use o nome exato da SUA tabela
+        builder.HasKey(x => new { x.InscricaoId, x.CursoId }); // PK composta
 
-        builder.Property(x => x.InscricaoId).HasColumnName("inscricao_id").IsRequired();
-        builder.Property(x => x.CursoId).HasColumnName("curso_id").IsRequired();
+        builder.Property(x => x.InscricaoId).HasColumnName("inscricao_id");
+        builder.Property(x => x.CursoId).HasColumnName("curso_id");
 
         builder.HasOne(x => x.Inscricao)
-            .WithOne(i => i.InscricaoCurso)
-            .HasForeignKey<InscricaoCurso>(x => x.InscricaoId)
-            .HasPrincipalKey<Inscricao>(i => i.Id)
-            .OnDelete(DeleteBehavior.Restrict)
-            .HasConstraintName("fk_inscricoes_curso_inscricoes_inscricao_id");
+         .WithMany(i => i.Cursos)
+         .HasForeignKey(x => x.InscricaoId)
+         .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(x => x.Curso)
-            .WithMany(c => c.InscricoesCurso)
-            .HasForeignKey(x => x.CursoId)
-            .HasPrincipalKey(c => c.Id)
-            .OnDelete(DeleteBehavior.Restrict)
-            .HasConstraintName("fk_inscricoes_curso_cursos_curso_id");
+           .WithMany(c => c.Inscricoes)
+           .HasForeignKey(x => x.CursoId)
+           .OnDelete(DeleteBehavior.Restrict);
     }
 }

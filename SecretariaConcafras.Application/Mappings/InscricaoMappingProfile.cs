@@ -18,7 +18,7 @@ namespace SecretariaConcafras.Application.Mappings
 
                 // Se for inscrição em curso
                 .ForMember(dest => dest.Cursos,
-                    opt => opt.MapFrom(src => src.InscricaoCurso != null ? src.InscricaoCurso.Curso.Titulo : null))
+                    opt => opt.MapFrom(src => src.Cursos != null ? src.Cursos : null))
 
                 // Se for trabalhador em comissão
                 .ForMember(dest => dest.Comissao,

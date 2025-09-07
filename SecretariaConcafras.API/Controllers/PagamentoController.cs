@@ -2,11 +2,12 @@
 using SecretariaConcafras.Application.DTOs.Pagamentos;
 using SecretariaConcafras.Application.Interfaces;
 using SecretariaConcafras.Application.Interfaces.Services;
+using SecretariaConcafras.Application.Services;
 
 namespace SecretariaConcafras.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/pagamentos")]
     public class PagamentoController : ControllerBase
     {
         private readonly IPagamentoService _service;
@@ -16,39 +17,20 @@ namespace SecretariaConcafras.API.Controllers
             _service = service;
         }
 
-        [HttpGet]
-        public async Task<IActionResult> ObterTodos()
-            => Ok(await _service.ObterTodosAsync());
-
-        [HttpGet("{id}")]
-        public async Task<IActionResult> ObterPorId(Guid id)
+        // cria pagamento (grupo)
+        [HttpPost("checkout/grupo")]
+        public async Task<IActionResult> CriarParaGrupo(Guid eventoId, Guid responsavelId)
         {
-            var result = await _service.ObterPorIdAsync(id);
-            if (result == null) return NotFound();
+            var result = await _service.CriarParaGrupoCheckoutAsync(eventoId, responsavelId);
             return Ok(result);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Criar([FromBody] PagamentoCreateDto dto)
+        // status (para polling)
+        [HttpGet("{id:guid}/status")]
+        public async Task<ActionResult<object>> Status(Guid id)
         {
-            var result = await _service.CriarAsync(dto);
-            return CreatedAtAction(nameof(ObterPorId), new { id = result.Id }, result);
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Atualizar(Guid id, [FromBody] PagamentoUpdateDto dto)
-        {
-            var result = await _service.AtualizarAsync(id, dto);
-            if (result == null) return NotFound();
-            return Ok(result);
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Remover(Guid id)
-        {
-            var result = await _service.DeletarAsync(id);
-            if (!result) return NotFound();
-            return NoContent();
+            var st = await _service.ObterStatusAsync(id);
+            return Ok(new { status = st.ToString() });
         }
     }
 }

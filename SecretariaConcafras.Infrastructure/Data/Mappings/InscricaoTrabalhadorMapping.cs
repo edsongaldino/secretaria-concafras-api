@@ -4,25 +4,17 @@ using SecretariaConcafras.Domain.Entities;
 
 public class InscricaoTrabalhadorMapping : IEntityTypeConfiguration<InscricaoTrabalhador>
 {
-    public void Configure(EntityTypeBuilder<InscricaoTrabalhador> b)
+    public void Configure(EntityTypeBuilder<InscricaoTrabalhador> builder)
     {
-        b.ToTable("inscricoes_trabalhador");
-        b.HasKey(x => x.Id).HasName("pk_inscricoes_trabalhador");
+        builder.ToTable("inscricoes_trabalhador");
+        builder.HasKey(x => x.InscricaoId);
+        builder.Property(x => x.InscricaoId).HasColumnName("inscricao_id");
+        builder.Property(x => x.ComissaoEventoId).HasColumnName("comissao_evento_id");
+        builder.Property(x => x.Nivel).HasColumnName("nivel");
 
-        b.Property(x => x.InscricaoId).HasColumnName("inscricao_id").IsRequired();
-        b.Property(x => x.ComissaoEventoId).HasColumnName("comissao_evento_id").IsRequired();
-        b.Property(x => x.Nivel).HasColumnName("nivel").IsRequired();
-
-        b.HasOne(x => x.Inscricao)
-            .WithOne(i => i.InscricaoTrabalhador)
-            .HasForeignKey<InscricaoTrabalhador>(x => x.InscricaoId)
-            .OnDelete(DeleteBehavior.Restrict)
-            .HasConstraintName("fk_inscricoes_trabalhador_inscricoes_inscricao_id");
-
-        b.HasOne(x => x.ComissaoEvento)
-            .WithMany(ce => ce.InscricoesTrabalhadores)
-            .HasForeignKey(x => x.ComissaoEventoId)
-            .OnDelete(DeleteBehavior.Restrict)
-            .HasConstraintName("fk_inscricoes_trabalhador_comissoes_evento_comissao_evento_id");
+        builder.HasOne(x => x.Inscricao)
+         .WithOne(i => i.InscricaoTrabalhador)
+         .HasForeignKey<InscricaoTrabalhador>(x => x.InscricaoId)
+         .OnDelete(DeleteBehavior.Cascade);
     }
 }

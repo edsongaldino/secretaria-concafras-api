@@ -32,6 +32,6 @@ namespace SecretariaConcafras.Domain.Entities
         public bool Neofito { get; set; } = false;
 
         // Participantes inscritos neste curso
-        public ICollection<InscricaoCurso> InscricoesCurso { get; set; } = new List<InscricaoCurso>();
+        public ICollection<InscricaoCurso> Inscricoes { get; set; } = new List<InscricaoCurso>();
     }
 }

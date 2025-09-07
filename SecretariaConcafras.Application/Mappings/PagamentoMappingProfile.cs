@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using SecretariaConcafras.Application.DTOs.Pagamentos;
 using SecretariaConcafras.Domain.Entities;
-using SecretariaConcafras.Domain.Enums;
 
 namespace SecretariaConcafras.Application.Mappings
 {
@@ -9,17 +8,16 @@ namespace SecretariaConcafras.Application.Mappings
     {
         public PagamentoMappingProfile()
         {
-            CreateMap<Pagamento, PagamentoResponseDto>();
-
+            // Mapeia Pagamento -> PagamentoResponseDto sem acessar propriedades inexistentes
             CreateMap<Pagamento, PagamentoResponseDto>()
-            .ForMember(dest => dest.DataPagamento, opt =>
-                opt.MapFrom(src => src.Historicos
-                    .Where(h => h.Status == StatusPagamento.Aprovado)
-                    .OrderBy(h => h.Data)
-                    .FirstOrDefault().Data))
-            .ForMember(dest => dest.CodigoTransacao, opt => opt.MapFrom(src => src.CodigoTransacao));
+                // Se DataPagamento existir no DTO, por ora deixa nulo (ou troque para um campo válido do seu Pagamento, ex.: CriadoEm)
+                .ForMember(dest => dest.DataPagamento,
+                    opt => opt.MapFrom(_ => (DateTime?)null))
+                // Se o DTO espera string: usa o Id como "código" por enquanto (ajuste quando tiver CodigoTransacao na entidade)
+                .ForMember(dest => dest.CodigoTransacao,
+                    opt => opt.MapFrom(src => src.Id.ToString()));
 
-
+            // Atualização
             CreateMap<PagamentoUpdateDto, Pagamento>();
         }
     }

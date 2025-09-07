@@ -3,6 +3,7 @@
 public class Endereco
 {
     public Guid Id { get; set; }
+    public string Cep { get; set; }
     public string Logradouro { get; set; }
     public string Numero { get; set; }
     public string? Complemento { get; set; }
@@ -13,6 +14,7 @@ public class Endereco
 
 public class EnderecoRequest
 {
+    public string Cep { get; set; }
     public string Logradouro { get; set; } = null!;
     public string Numero { get; set; } = null!;
     public string? Complemento { get; set; }
@@ -25,6 +27,7 @@ public class EnderecoRequest
         return new Endereco
         {
             Id = new Guid(),
+            Cep = this.Cep,
             Logradouro = this.Logradouro,
             Numero = this.Numero,
             Complemento = this.Complemento,

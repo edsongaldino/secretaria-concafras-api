@@ -1,73 +1,60 @@
-﻿using AutoMapper;
+﻿// Application/Services/Implementations/ParticipanteService.cs
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using SecretariaConcafras.Application.DTOs.Participantes;
+using SecretariaConcafras.Application.Interfaces;
 using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Domain.Entities;
 using SecretariaConcafras.Infrastructure;
-using System;
+using System.Linq;
 
-namespace SecretariaConcafras.Application.Services.Implementations
+public class ParticipanteService : IParticipanteService
 {
-    public class ParticipanteService : IParticipanteService
+    private readonly ApplicationDbContext _db;
+    private readonly IInstituicaoService _instituicaoSvc;
+    private readonly IMapper _mapper;
+
+    public ParticipanteService(ApplicationDbContext db, IInstituicaoService instituicaoSvc, IMapper mapper)
     {
-        private readonly ApplicationDbContext _context;
-        private readonly IMapper _mapper;
+        _db = db;
+        _instituicaoSvc = instituicaoSvc;
+        _mapper = mapper;
+    }
 
-        public ParticipanteService(ApplicationDbContext context, IMapper mapper)
+    public async Task<ParticipanteResultadoDto> UpsertPorCpfAsync(ParticipanteCreateDto dto, CancellationToken ct = default)
+    {
+        var cpf = OnlyDigits(dto.Cpf);
+        if (cpf.Length != 11) throw new ArgumentException("CPF inválido.", nameof(dto.Cpf));
+
+        Guid? instituicaoId = null;
+        if (!string.IsNullOrWhiteSpace(dto.Instituicao))
+            instituicaoId = await _instituicaoSvc.ObterOuCriarPorNomeAsync(dto.Instituicao!, ct);
+
+        var existente = await _db.Participantes
+            .Include(p => p.Endereco)
+            .FirstOrDefaultAsync(p => p.CPF == cpf, ct);
+
+        if (existente is null)
         {
-            _context = context;
-            _mapper = mapper;
+            var novo = _mapper.Map<Participante>(dto);
+            novo.CPF = cpf;
+            novo.InstituicaoId = instituicaoId;
+            if (!dto.DataNascimento.HasValue) novo.DataNascimento = DateTime.MinValue; // se sua entidade exige
+
+            _db.Participantes.Add(novo);
+            await _db.SaveChangesAsync(ct);
+            return new ParticipanteResultadoDto(novo.Id, novo.Nome);
         }
-
-        public async Task<ParticipanteResponseDto> CriarAsync(ParticipanteCreateDto dto)
+        else
         {
-            var entity = _mapper.Map<Participante>(dto);
-            _context.Participantes.Add(entity);
-            await _context.SaveChangesAsync();
-            return _mapper.Map<ParticipanteResponseDto>(entity);
-        }
+            _mapper.Map(dto, existente); // atualiza só campos não-nulos
+            existente.CPF = cpf;
+            if (instituicaoId.HasValue) existente.InstituicaoId = instituicaoId;
 
-        public async Task<ParticipanteResponseDto> AtualizarAsync(ParticipanteUpdateDto dto)
-        {
-            var entity = await _context.Participantes.FindAsync(dto.Id);
-            if (entity == null) throw new KeyNotFoundException("Participante não encontrado.");
-
-            _mapper.Map(dto, entity);
-            _context.Participantes.Update(entity);
-            await _context.SaveChangesAsync();
-            return _mapper.Map<ParticipanteResponseDto>(entity);
-        }
-
-        public async Task<bool> RemoverAsync(Guid id)
-        {
-            var entity = await _context.Participantes.FindAsync(id);
-            if (entity == null) return false;
-
-            _context.Participantes.Remove(entity);
-            await _context.SaveChangesAsync();
-            return true;
-        }
-
-        public async Task<ParticipanteResponseDto?> ObterPorIdAsync(Guid id)
-        {
-            var entity = await _context.Participantes
-                .Include(p => p.Responsavel)
-                .Include(p => p.Instituicao)
-                .Include(p => p.Endereco)
-                .FirstOrDefaultAsync(p => p.Id == id);
-
-            return entity == null ? null : _mapper.Map<ParticipanteResponseDto>(entity);
-        }
-
-        public async Task<IEnumerable<ParticipanteResponseDto>> ObterTodosAsync()
-        {
-            var entities = await _context.Participantes
-                .Include(p => p.Responsavel)
-                .Include(p => p.Instituicao)
-                .Include(p => p.Endereco)
-                .ToListAsync();
-
-            return _mapper.Map<IEnumerable<ParticipanteResponseDto>>(entities);
+            await _db.SaveChangesAsync(ct);
+            return new ParticipanteResultadoDto(existente.Id, existente.Nome);
         }
     }
+
+    static string OnlyDigits(string v) => new string((v ?? "").Where(char.IsDigit).ToArray());
 }

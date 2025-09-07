@@ -5,7 +5,7 @@ using SecretariaConcafras.Application.Interfaces.Services;
 namespace SecretariaConcafras.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/inscricao")]
     public class InscricaoController : ControllerBase
     {
         private readonly IInscricaoService _service;
@@ -37,7 +37,7 @@ namespace SecretariaConcafras.API.Controllers
             return Ok(result);
         }
 
-        [HttpPost]
+        [HttpPost("criar")]
         public async Task<IActionResult> Criar([FromBody] InscricaoCreateDto dto)
         {
             var result = await _service.CriarAsync(dto);
@@ -50,6 +50,13 @@ namespace SecretariaConcafras.API.Controllers
             var result = await _service.CancelarAsync(id);
             if (!result) return NotFound();
             return NoContent();
+        }
+
+        [HttpGet("lista-inscricoes/{eventoId}/{participanteId}")]
+        public async Task<IActionResult> ListaInscricoesPorParticipante(Guid participanteId, Guid eventoId)
+        {
+            var result = await _service.ListaInscricoesAsync(eventoId,participanteId);
+            return Ok(result);
         }
     }
 }

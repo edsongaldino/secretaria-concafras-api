@@ -2,11 +2,8 @@
 {
     public class UsuarioCreateDto
     {
-        public string Nome { get; set; }
         public string Email { get; set; }
-        public string Telefone { get; set; }
         public string Senha { get; set; }  // Vai ser criptografada no Service
-
         public ICollection<UsuarioRoleDto> Roles { get; set; } = new List<UsuarioRoleDto>();
     }
 }

@@ -1,13 +1,16 @@
 using AutoMapper;
+using MercadoPago.Config;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Npgsql.EntityFrameworkCore.PostgreSQL;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Scrutor; // necessário para Scan()
+using SecretariaConcafras.Application.Interfaces;
 using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Application.Mappings;
+using SecretariaConcafras.Application.Options;
+using SecretariaConcafras.Application.Services;
 using SecretariaConcafras.Domain.Interfaces;
 using SecretariaConcafras.Infrastructure;
 using SecretariaConcafras.Infrastructure.Repositories;
@@ -30,6 +33,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Repositório genérico
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+builder.Services.AddScoped<IPagamentoService, PagamentoService>();
 
 // Registro automático com Scrutor
 builder.Services.Scan(scan => scan
@@ -46,8 +50,17 @@ builder.Services.Scan(scan => scan
         .WithScopedLifetime()
 );
 
+
+builder.Services.Configure<MpOptions>(builder.Configuration.GetSection("MercadoPago"));
+builder.Services.AddSingleton(sp => {
+    var opt = sp.GetRequiredService<IOptions<MpOptions>>().Value;
+    MercadoPagoConfig.AccessToken = opt.AccessToken;
+    return opt;
+});
+builder.Services.AddScoped<IGatewayPagamento, MercadoPagoCheckoutProGateway>();
+
 // AutoMapper
-builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+builder.Services.AddAutoMapper(typeof(CommonProfile).Assembly);
 
 // JWT
 builder.Services.AddAuthentication(options =>

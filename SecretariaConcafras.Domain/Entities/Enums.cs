@@ -64,4 +64,20 @@
         Jovem = 2,
         Adulto = 3
     }
+    public enum PagamentoStatus : short
+    {
+        Pendente = 1,
+        Aguardando = 2, // aguardando confirmação do provedor
+        Pago = 3,
+        Cancelado = 4,
+        Expirado = 5,
+        Falhou = 6
+    }
+
+    public enum MetodoPagamento : short
+    {
+        Checkout = 1, // Mercado Pago Checkout Pro
+        Pix = 2  // (se um dia quiser ativar PIX direto)
+    }
+
 }

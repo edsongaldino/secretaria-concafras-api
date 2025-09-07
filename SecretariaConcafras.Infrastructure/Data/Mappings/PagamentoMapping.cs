@@ -6,24 +6,21 @@ namespace SecretariaConcafras.Infrastructure.Mappings
 {
     public class PagamentoMapping : IEntityTypeConfiguration<Pagamento>
     {
-        public void Configure(EntityTypeBuilder<Pagamento> builder)
+        public void Configure(EntityTypeBuilder<Pagamento> b)
         {
-            builder.ToTable("pagamentos");
-            builder.HasKey(x => x.Id).HasName("pk_pagamentos");
-
-			builder.Property(x => x.InscricaoId).HasColumnName("inscricao_id");
-			builder.Property(x => x.Valor).HasColumnName("valor");
-			builder.Property(x => x.DataCriacao).HasColumnName("data_criacao");
-			builder.Property(x => x.Status).HasColumnName("status");
-			builder.Property(x => x.CodigoTransacao).HasColumnName("codigo_transacao");
-			builder.Property(x => x.MetodoPagamento).HasColumnName("metodo_pagamento");
-			builder.Property(x => x.QrCodePix).HasColumnName("qrcode_pix");
-
-			builder.HasOne(x => x.Inscricao)
-			 .WithMany(i => i.Pagamentos)
-			 .HasForeignKey(x => x.InscricaoId)
-			 .HasConstraintName("fk_pagamentos_inscricoes_inscricao_id")
-			 .OnDelete(DeleteBehavior.Cascade); // opcional
-		}
+            b.ToTable("pagamentos");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.EventoId).HasColumnName("evento_id");
+            b.Property(x => x.ResponsavelFinanceiroId).HasColumnName("responsavel_financeiro_id");
+            b.Property(x => x.ValorTotal).HasColumnName("valor_total").HasColumnType("numeric(12,2)");
+            b.Property(x => x.Metodo).HasColumnName("metodo").HasConversion<short>();
+            b.Property(x => x.Status).HasColumnName("status").HasConversion<short>();
+            b.Property(x => x.ExpiraEm).HasColumnName("expira_em");
+            b.Property(x => x.ProviderReference).HasColumnName("provider_reference");
+            b.Property(x => x.ProviderPayload).HasColumnName("provider_payload");
+            b.HasMany(x => x.Itens).WithOne(i => i.Pagamento).HasForeignKey(i => i.PagamentoId);
+            b.HasIndex(x => new { x.EventoId, x.ResponsavelFinanceiroId, x.Status })
+             .HasDatabaseName("ix_pag_evento_resp_status");
+        }
     }
 }

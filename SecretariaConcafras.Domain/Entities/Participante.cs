@@ -25,9 +25,6 @@ public class Participante
     public Guid? EnderecoId { get; set; }
     public Endereco? Endereco { get; set; }
 
-    // Responsável (caso menor de idade)
-    public Guid? ResponsavelId { get; set; }
-    public Participante? Responsavel { get; set; }
 
     // Inscrições em eventos
     public ICollection<Inscricao> Inscricoes { get; set; } = new List<Inscricao>();
