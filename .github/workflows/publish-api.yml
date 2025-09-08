@@ -1,0 +1,54 @@
+name: API - Build, Push (GHCR) & Deploy
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+# Permissões necessárias para o GITHUB_TOKEN publicar no GHCR
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/secretaria-concafras-api:latest
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR (push com GITHUB_TOKEN)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_NAME }}
+
+      - name: Deploy to VPS (compose pull/up)
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key: ${{ secrets.DO_KEY }}
+          port: 22
+          script: |
+            set -e
+            cd /root/apps/secretaria-concafras
+            docker compose --env-file .env pull api
+            docker compose --env-file .env up -d api
+            docker image prune -f
