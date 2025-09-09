@@ -144,8 +144,9 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SecretariaConcafras API v1");
-    c.RoutePrefix = "swagger"; // UI em /swagger
+    c.RoutePrefix = "swagger";              // UI fica em /swagger (a gente reescreve /api/swagger no Nginx)
+    c.SwaggerEndpoint("v1/swagger.json",    // <-- RELATIVO! não use "/swagger/..."
+                      "SecretariaConcafras API v1");
 });
 
 
