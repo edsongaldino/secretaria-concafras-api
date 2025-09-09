@@ -1,138 +1,73 @@
-name: API - Build, Push (GHCR) & Deploy
+name: CI/CD - Secretaria Concafras API
 
 on:
   push:
-    branches: ["main"]
+    branches: [ main ]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  packages: write
-
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/secretaria-concafras-api:latest
+  REGISTRY: ghcr.io
+  OWNER: seu-user-ou-org        # >>> minúsculo!
+  IMAGE_NAME: secretaria-concafras-api
+  TAG: latest                   # você pode versionar (ex: v1, sha) se quiser
 
 jobs:
-  build-push-deploy:
+  build_and_push:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Localiza o .csproj principal (prioriza caminhos com "api")
-      - name: Find .csproj
-        id: findproj
-        shell: bash
-        run: |
-          set -e
-          mapfile -t ALL < <(find . -type f -name '*.csproj' | sort)
-          if [ ${#ALL[@]} -eq 0 ]; then
-            echo "Nenhum .csproj encontrado."; exit 1
-          fi
-          PICK=""
-          for p in "${ALL[@]}"; do
-            if echo "$p" | grep -i -q "/api"; then PICK="$p"; break; fi
-          done
-          if [ -z "$PICK" ]; then PICK="${ALL[0]}"; fi
-          DLL="$(basename "$PICK" .csproj).dll"
-          echo "proj_path=$PICK" >> "$GITHUB_OUTPUT"
-          echo "dll_name=$DLL" >> "$GITHUB_OUTPUT"
-          echo "Usando projeto: $PICK (DLL: $DLL)"
-
-      # Detecta SDK (global.json ou maior TFM declarado nos .csproj)
-      - name: Detect .NET SDK & runtime tag
-        id: dotnetver
-        shell: bash
-        run: |
-          set -e
-          SDK=""
-          if [ -f global.json ]; then
-            sudo apt-get update -y >/dev/null 2>&1 || true
-            sudo apt-get install -y jq >/dev/null 2>&1 || true
-            SDK="$(jq -r '.sdk.version // empty' global.json || true)"
-          fi
-
-          if [ -z "$SDK" ]; then
-            # extrai netX.Y de <TargetFramework> e <TargetFrameworks>
-            mapfile -t TFMS < <(
-              find . -type f -name '*.csproj' -print0 \
-              | xargs -0 sed -n \
-                  -e 's/.*<TargetFramework>\(net[0-9]\+\.[0-9]\+\)<\/TargetFramework>.*/\1/p' \
-                  -e 's/.*<TargetFrameworks>\(net[0-9][^<]*\)<\/TargetFrameworks>.*/\1/p' \
-              | tr ';' '\n' | sed 's/\r//g' | grep -E '^net[0-9]+\.[0-9]+$' | sort -u -V
-            )
-            if [ ${#TFMS[@]} -eq 0 ]; then
-              SDK="8.0.x"
-            else
-              HIGHEST="${TFMS[-1]}"
-              MAJOR_MINOR="${HIGHEST#net}"
-              SDK="${MAJOR_MINOR}.x"
-            fi
-          fi
-
-          RUNTIME_TAG="$(echo "$SDK" | awk -F. '{print $1"."$2}')"
-          echo "sdk=$SDK" >> "$GITHUB_OUTPUT"
-          echo "runtime_tag=$RUNTIME_TAG" >> "$GITHUB_OUTPUT"
-          echo "SDK a instalar: $SDK | Runtime tag: $RUNTIME_TAG"
-
-      - name: Setup .NET (${{ steps.dotnetver.outputs.sdk }})
-        uses: actions/setup-dotnet@v4
+      # (opcional, mas recomendado) meta para tags automáticas
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          dotnet-version: ${{ steps.dotnetver.outputs.sdk }}
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ env.TAG }}
+            type=sha,prefix=sha-,format=short
 
-      - name: Restore
-        run: dotnet restore "${{ steps.findproj.outputs.proj_path }}"
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: Publish (Release)
-        run: dotnet publish "${{ steps.findproj.outputs.proj_path }}" -c Release -o ./.out/publish /p:UseAppHost=false
-
-      - name: Generate runtime Dockerfile
-        run: |
-          cat > Dockerfile.runtime <<'DOCKER'
-          FROM mcr.microsoft.com/dotnet/aspnet:RUNTIME_TAG
-          WORKDIR /app
-          COPY ./.out/publish .
-          ENV ASPNETCORE_URLS=http://+:8080
-          EXPOSE 8080
-          ENTRYPOINT ["dotnet","DLL_PLACEHOLDER"]
-          DOCKER
-          sed -i "s/RUNTIME_TAG/${{ steps.dotnetver.outputs.runtime_tag }}/" Dockerfile.runtime
-          sed -i "s/DLL_PLACEHOLDER/${{ steps.findproj.outputs.dll_name }}/" Dockerfile.runtime
-          echo "---- Dockerfile.runtime ----"
-          sed -n '1,120p' Dockerfile.runtime
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
 
       - name: Build & Push
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile.runtime
+          file: ./Dockerfile             # ajuste se necessário
           push: true
-          tags: ${{ env.IMAGE_NAME }}
+          platforms: linux/amd64         # sua VPS é amd64 (DO)
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Deploy to VPS (compose pull/up)
-        uses: appleboy/ssh-action@v1.1.0
+  deploy:
+    needs: build_and_push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH (API)
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USER }}
           key: ${{ secrets.DO_KEY }}
-          port: 22
           script: |
             set -e
-            # Se o pacote no GHCR for PRIVADO, descomente e crie GHCR_USERNAME/GHCR_TOKEN nos Secrets:
-            # echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin || true
-
-            cd /root/apps/secretaria-concafras
-            docker compose --env-file .env pull api
-            docker compose --env-file .env up -d api
+            docker login ${{ env.REGISTRY }} -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+            cd ~/apps/secretaria-concafras
+            # puxa imagem nova sem derrubar os outros
+            docker compose pull api
+            docker compose up -d api
             docker image prune -f
