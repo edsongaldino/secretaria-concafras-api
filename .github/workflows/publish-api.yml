@@ -46,8 +46,8 @@ jobs:
       - name: Build & Push
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile             # ajuste se necessário
+          context: ./API
+          file: ./API/Dockerfile
           push: true
           platforms: linux/amd64         # sua VPS é amd64 (DO)
           tags: ${{ steps.meta.outputs.tags }}
