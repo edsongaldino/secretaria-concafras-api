@@ -20,17 +20,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Descobre automaticamente o .csproj (prefere caminhos com 'Api')
+      # Encontra o .csproj (prioriza caminhos com "api")
       - name: Find .csproj
         id: findproj
         shell: bash
         run: |
           set -e
           mapfile -t ALL < <(git ls-files '**/*.csproj')
-          if [ ${#ALL[@]} -eq 0 ]; then
-            echo "Nenhum .csproj encontrado."; exit 1
-          fi
-          # escolhe o primeiro que contenha 'api' no caminho; se não houver, pega o primeiro
+          if [ ${#ALL[@]} -eq 0 ]; then echo "Nenhum .csproj encontrado."; exit 1; fi
           PICK=""
           for p in "${ALL[@]}"; do
             if echo "$p" | grep -i -q "/api"; then PICK="$p"; break; fi
@@ -43,34 +40,51 @@ jobs:
           echo "dll_name=$DLL" >> "$GITHUB_OUTPUT"
           echo "Usando projeto: $PICK (DLL: $DLL)"
 
-      # Gera um Dockerfile CI com base no .csproj encontrado
-      - name: Generate CI Dockerfile
+      # Detecta versão do .NET pelo global.json (se existir)
+      - name: Detect .NET SDK version
+        id: dotnetver
+        shell: bash
         run: |
-          cat > Dockerfile.ci <<'DOCKER'
-          # build
-          FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-          WORKDIR /src
-          COPY . .
-          # restaura e publica somente o projeto escolhido
-          ARG PROJ_PATH
-          RUN dotnet restore "$PROJ_PATH"
-          RUN dotnet publish "$PROJ_PATH" -c Release -o /app/out /p:UseAppHost=false
+          set -e
+          SDK="8.0.x"
+          if [ -f global.json ]; then
+            sudo apt-get update -y && sudo apt-get install -y jq
+            SDK="$(jq -r '.sdk.version // empty' global.json)"
+            [ -z "$SDK" ] && SDK="8.0.x"
+          fi
+          RUNTIME_TAG="$(echo "$SDK" | awk -F. '{print $1"."$2}')"
+          echo "sdk=$SDK" >> "$GITHUB_OUTPUT"
+          echo "runtime_tag=$RUNTIME_TAG" >> "$GITHUB_OUTPUT"
+          echo "SDK: $SDK | RUNTIME: $RUNTIME_TAG"
 
-          # runtime
-          FROM mcr.microsoft.com/dotnet/aspnet:8.0
+      - name: Setup .NET (${{ steps.dotnetver.outputs.sdk }})
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ steps.dotnetver.outputs.sdk }}
+
+      # Restaura e publica no runner (fora do Docker)
+      - name: Restore
+        run: dotnet restore "${{ steps.findproj.outputs.proj_path }}"
+      - name: Publish (Release)
+        run: dotnet publish "${{ steps.findproj.outputs.proj_path }}" -c Release -o ./.out/publish /p:UseAppHost=false
+
+      # Gera um Dockerfile de runtime leve
+      - name: Generate runtime Dockerfile
+        run: |
+          cat > Dockerfile.runtime <<'DOCKER'
+          FROM mcr.microsoft.com/dotnet/aspnet:RUNTIME_TAG
           WORKDIR /app
+          COPY ./.out/publish .
           ENV ASPNETCORE_URLS=http://+:8080
-          COPY --from=build /app/out .
           EXPOSE 8080
-          ARG DLL_NAME
-          ENTRYPOINT ["dotnet", "DLL_PLACEHOLDER"]
+          ENTRYPOINT ["dotnet","DLL_PLACEHOLDER"]
           DOCKER
-          # substitui o placeholder pela DLL real
-          sed -i "s/DLL_PLACEHOLDER/${{ steps.findproj.outputs.dll_name }}/" Dockerfile.ci
-          echo "Dockerfile.ci:"
-          sed -n '1,120p' Dockerfile.ci
+          sed -i "s/RUNTIME_TAG/${{ steps.dotnetver.outputs.runtime_tag }}/" Dockerfile.runtime
+          sed -i "s/DLL_PLACEHOLDER/${{ steps.findproj.outputs.dll_name }}/" Dockerfile.runtime
+          echo "---- Dockerfile.runtime ----"
+          sed -n '1,120p' Dockerfile.runtime
 
-      - name: Login to GHCR (push com GITHUB_TOKEN)
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -84,12 +98,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile.ci
+          file: ./Dockerfile.runtime
           push: true
           tags: ${{ env.IMAGE_NAME }}
-          build-args: |
-            PROJ_PATH=${{ steps.findproj.outputs.proj_path }}
-            DLL_NAME=${{ steps.findproj.outputs.dll_name }}
 
       - name: Deploy to VPS (compose pull/up)
         uses: appleboy/ssh-action@v1.1.0
@@ -100,9 +111,8 @@ jobs:
           port: 22
           script: |
             set -e
-            # se o pacote no GHCR for PRIVADO e você tiver PAT, descomente e configure:
-            # echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin || true
-
+            # Se o pacote no GHCR for PRIVADO, descomente o login abaixo e crie GHCR_USERNAME/GHCR_TOKEN nos secrets:
+            # echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
             cd /root/apps/secretaria-concafras
             docker compose --env-file .env pull api
             docker compose --env-file .env up -d api
