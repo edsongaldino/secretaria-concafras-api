@@ -145,13 +145,15 @@ app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "SecretariaConcafras API v1");
-    app.UseSwaggerUI(c => c.RoutePrefix = "swagger");
+    c.RoutePrefix = "swagger"; // acesso em /swagger
 });
 
 app.UseCors("AllowAngular");
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
+app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.Run();
