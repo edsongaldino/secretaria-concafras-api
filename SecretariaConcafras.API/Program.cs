@@ -141,12 +141,19 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseSwagger();
+app.UseSwagger(c =>
+{
+    // move o JSON para /api/swagger/v1/swagger.json
+    c.RouteTemplate = "api/swagger/{documentName}/swagger.json";
+});
+
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SecretariaConcafras API v1");
-    c.RoutePrefix = "swagger"; // acesso em /swagger
+    // UI em /api/swagger e aponta para o JSON acima
+    c.RoutePrefix = "api/swagger";
+    c.SwaggerEndpoint("/api/swagger/v1/swagger.json", "SecretariaConcafras API v1");
 });
+
 
 app.UseCors("AllowAngular");
 
