@@ -20,14 +20,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Descobre o .csproj principal (prioriza caminhos que contenham "api")
+      # Localiza o .csproj principal (prioriza caminhos com "api")
       - name: Find .csproj
         id: findproj
         shell: bash
         run: |
           set -e
-          mapfile -t ALL < <(git ls-files '**/*.csproj')
-          if [ ${#ALL[@]} -eq 0 ]; then echo "Nenhum .csproj encontrado."; exit 1; fi
+          mapfile -t ALL < <(find . -type f -name '*.csproj' | sort)
+          if [ ${#ALL[@]} -eq 0 ]; then
+            echo "Nenhum .csproj encontrado."; exit 1
+          fi
           PICK=""
           for p in "${ALL[@]}"; do
             if echo "$p" | grep -i -q "/api"; then PICK="$p"; break; fi
@@ -38,7 +40,7 @@ jobs:
           echo "dll_name=$DLL" >> "$GITHUB_OUTPUT"
           echo "Usando projeto: $PICK (DLL: $DLL)"
 
-      # Detecta o SDK via global.json ou pelos TargetFramework(s) dos .csproj
+      # Detecta SDK (global.json ou maior TFM declarado nos .csproj)
       - name: Detect .NET SDK & runtime tag
         id: dotnetver
         shell: bash
@@ -52,13 +54,19 @@ jobs:
           fi
 
           if [ -z "$SDK" ]; then
-            # Coleta TFMs (ex.: net8.0, net9.0) dos csproj do repo
-            TFMS="$(grep -RhoE 'net[0-9]+\.[0-9]+' -- '**/*.csproj' | sort -u -V)"
-            if [ -z "$TFMS" ]; then
+            # extrai netX.Y de <TargetFramework> e <TargetFrameworks>
+            mapfile -t TFMS < <(
+              find . -type f -name '*.csproj' -print0 \
+              | xargs -0 sed -n \
+                  -e 's/.*<TargetFramework>\(net[0-9]\+\.[0-9]\+\)<\/TargetFramework>.*/\1/p' \
+                  -e 's/.*<TargetFrameworks>\(net[0-9][^<]*\)<\/TargetFrameworks>.*/\1/p' \
+              | tr ';' '\n' | sed 's/\r//g' | grep -E '^net[0-9]+\.[0-9]+$' | sort -u -V
+            )
+            if [ ${#TFMS[@]} -eq 0 ]; then
               SDK="8.0.x"
             else
-              HIGHEST="$(echo "$TFMS" | tail -n1)"     # pega a maior (version sort)
-              MAJOR_MINOR="$(echo "$HIGHEST" | sed -E 's/^net([0-9]+\.[0-9]+)$/\1/')"
+              HIGHEST="${TFMS[-1]}"
+              MAJOR_MINOR="${HIGHEST#net}"
               SDK="${MAJOR_MINOR}.x"
             fi
           fi
@@ -66,20 +74,19 @@ jobs:
           RUNTIME_TAG="$(echo "$SDK" | awk -F. '{print $1"."$2}')"
           echo "sdk=$SDK" >> "$GITHUB_OUTPUT"
           echo "runtime_tag=$RUNTIME_TAG" >> "$GITHUB_OUTPUT"
-          echo "SDK a instalar: $SDK | Runtime tag da imagem: $RUNTIME_TAG"
+          echo "SDK a instalar: $SDK | Runtime tag: $RUNTIME_TAG"
 
       - name: Setup .NET (${{ steps.dotnetver.outputs.sdk }})
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ steps.dotnetver.outputs.sdk }}
 
-      # Restaura e publica no runner (mais rápido e evita mismatch de SDK)
       - name: Restore
         run: dotnet restore "${{ steps.findproj.outputs.proj_path }}"
+
       - name: Publish (Release)
         run: dotnet publish "${{ steps.findproj.outputs.proj_path }}" -c Release -o ./.out/publish /p:UseAppHost=false
 
-      # Dockerfile de runtime alinhado ao SDK detectado (8.0/9.0, etc.)
       - name: Generate runtime Dockerfile
         run: |
           cat > Dockerfile.runtime <<'DOCKER'
@@ -122,7 +129,7 @@ jobs:
           port: 22
           script: |
             set -e
-            # Se o pacote no GHCR for PRIVADO, descomente e crie GHCR_USERNAME/GHCR_TOKEN nos Secrets do repo:
+            # Se o pacote no GHCR for PRIVADO, descomente e crie GHCR_USERNAME/GHCR_TOKEN nos Secrets:
             # echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin || true
 
             cd /root/apps/secretaria-concafras
