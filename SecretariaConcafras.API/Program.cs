@@ -141,17 +141,11 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Swagger JSON em /api/swagger/v1/swagger.json
-app.UseSwagger(c =>
-{
-    c.RouteTemplate = "api/swagger/{documentName}/swagger.json";
-});
-
-// Swagger UI em /api/swagger (e o endpoint JSON relativo ao RoutePrefix)
+app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.RoutePrefix = "api/swagger";
-    c.SwaggerEndpoint("v1/swagger.json", "SecretariaConcafras API v1");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SecretariaConcafras API v1");
+    c.RoutePrefix = "swagger"; // UI em /swagger
 });
 
 
