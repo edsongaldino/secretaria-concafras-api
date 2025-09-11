@@ -138,7 +138,7 @@ namespace SecretariaConcafras.Application.Services
                     Id = Guid.NewGuid(),
                     PagamentoId = pag.Id,
                     InscricaoId = i.Id,
-                    Valor = valorItem
+                    Valor = 10
                 });
             }
 

@@ -19,6 +19,8 @@ using SecretariaConcafras.Infrastructure.Repositories;
 using SecretariaConcafras.SharedKernel.Security;
 using System.Diagnostics;
 using System.Text;
+using System.Collections.Generic;
+using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,9 +43,9 @@ builder.Services.AddScoped<IPagamentoService, PagamentoService>();
 // Registro automático com Scrutor
 builder.Services.Scan(scan => scan
     .FromAssemblies(
-        typeof(IUsuarioService).Assembly,     // Application
+        typeof(IUsuarioService).Assembly,      // Application
         typeof(ApplicationDbContext).Assembly, // Infrastructure
-        typeof(ITokenService).Assembly        // SharedKernel
+        typeof(ITokenService).Assembly         // SharedKernel
     )
     .AddClasses(c => c.Where(type => type.Name.EndsWith("Service")))
         .AsImplementedInterfaces()
@@ -53,19 +55,12 @@ builder.Services.Scan(scan => scan
         .WithScopedLifetime()
 );
 
-
-// Configuração do MpOptions direto do appsettings
+// MpOptions do appsettings
 builder.Services.Configure<MpOptions>(builder.Configuration.GetSection("MercadoPago"));
+// Set explícito do AccessToken no SDK (não depende de DI)
+MercadoPagoConfig.AccessToken = builder.Configuration["MercadoPago:AccessToken"];
 
-// Define singleton que injeta as opções e seta o token global do SDK
-builder.Services.AddSingleton(sp =>
-{
-    var opt = sp.GetRequiredService<IOptions<MpOptions>>().Value;
-    MercadoPagoConfig.AccessToken = opt.AccessToken;
-    return opt;
-});
-
-// Registro do seu gateway de pagamento
+// Registro do gateway de pagamento
 builder.Services.AddScoped<IGatewayPagamento, MercadoPagoCheckoutProGateway>();
 
 // AutoMapper
@@ -90,6 +85,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// ModelState → 400 detalhado
 builder.Services.Configure<ApiBehaviorOptions>(o =>
 {
     o.InvalidModelStateResponseFactory = context =>
@@ -139,65 +135,34 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// CORS (dev + produção)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngular",
         policy => policy
-            .WithOrigins("http://localhost:4200")
+            .WithOrigins("http://localhost:4200", "https://inscribo.com.br")
             .AllowAnyMethod()
             .AllowAnyHeader());
 });
 
 var app = builder.Build();
 
+// Swagger UI
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.RoutePrefix = "swagger";              // UI fica em /swagger (a gente reescreve /api/swagger no Nginx)
-    c.SwaggerEndpoint("v1/swagger.json",    // <-- RELATIVO! não use "/swagger/..."
+    c.RoutePrefix = "swagger";           // UI em /swagger
+    c.SwaggerEndpoint("v1/swagger.json", // relativo
                       "SecretariaConcafras API v1");
 });
 
-
+// CORS
 app.UseCors("AllowAngular");
 
-app.UseExceptionHandler(errorApp =>
-{
-    errorApp.Run(async context =>
-    {
-        var feat = context.Features.Get<IExceptionHandlerPathFeature>();
-        var ex = feat?.Error;
+// Handler global de erros → envia para /error
+app.UseExceptionHandler("/error");
 
-        ProblemDetails problem;
-
-        if (ex is InscricaoException iex)
-        {
-            context.Response.StatusCode = (int)iex.Status;
-            problem = new ProblemDetails
-            {
-                Status = (int)iex.Status,
-                Title = iex.Message
-            };
-            if (iex.Errors is not null)
-                problem.Extensions["errors"] = iex.Errors;
-        }
-        else
-        {
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            problem = new ProblemDetails
-            {
-                Status = StatusCodes.Status500InternalServerError,
-                Title = "Erro inesperado."
-            };
-        }
-
-        context.Response.ContentType = "application/json";
-        await context.Response.WriteAsJsonAsync(problem);
-    });
-});
-
-app.UseExceptionHandler("/error"); // <-- redireciona para o endpoint abaixo
-
+// Endpoint central de erro (ProblemDetails + errorId)
 app.Map("/error", (HttpContext http, ILogger<Program> logger) =>
 {
     var feat = http.Features.Get<IExceptionHandlerFeature>();
@@ -239,11 +204,24 @@ app.Map("/error", (HttpContext http, ILogger<Program> logger) =>
     }
 });
 
-
 //app.UseHttpsRedirection();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Health básico
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+
+// Health do MP (confere se o token foi setado)
+app.MapGet("/api/health/mp", () =>
+{
+    var at = MercadoPagoConfig.AccessToken;
+    return Results.Ok(new
+    {
+        ok = !string.IsNullOrWhiteSpace(at),
+        tokenPrefix = string.IsNullOrWhiteSpace(at) ? "" : at[..Math.Min(10, at.Length)]
+    });
+});
+
 app.Run();
