@@ -39,9 +39,9 @@ public class ParticipanteService : IParticipanteService
             var novo = _mapper.Map<Participante>(dto);
             novo.CPF = cpf;
             novo.InstituicaoId = instituicaoId;
-            if (!dto.DataNascimento.HasValue) novo.DataNascimento = DateTime.MinValue; // se sua entidade exige
+			novo.DataNascimento = dto.DataNascimento;
 
-            _db.Participantes.Add(novo);
+			_db.Participantes.Add(novo);
             await _db.SaveChangesAsync(ct);
             return new ParticipanteResultadoDto(novo.Id, novo.Nome);
         }
