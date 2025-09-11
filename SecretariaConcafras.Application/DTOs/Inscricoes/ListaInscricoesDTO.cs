@@ -14,12 +14,14 @@ public class ListaInscricoesDTO
     public DateTime DataInscricao { get; set; }
 
     public string ParticipanteNome { get; set; } = default!;
+	public DateOnly ParticipanteDataNascimento { get; set; }
+	public int ParticipanteIdade { get; set; }
 
-    public string TemaAtual { get; set; } = default!;
+	public string TemaAtual { get; set; } = default!;
     public string TemaEspecifico { get; set; } = default!;
 
     public bool Trabalhador { get; set; }
     public string PagamentoStatus { get; set; } = "Pendente";
-    public decimal Total { get; set; } // se houver precificação
+    public decimal ValorInscricao { get; set; } // se houver precificação
     public bool PodePagar => PagamentoStatus != "Pago";
 }

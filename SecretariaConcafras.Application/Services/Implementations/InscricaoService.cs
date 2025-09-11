@@ -5,6 +5,7 @@ using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Domain.Entities;
 using SecretariaConcafras.Domain.Enums;
 using SecretariaConcafras.Domain.Exceptions;
+using SecretariaConcafras.Domain.Helpers;
 using SecretariaConcafras.Infrastructure;
 using System;
 using System.Net;
@@ -25,15 +26,21 @@ namespace SecretariaConcafras.Application.Services.Implementations
         public async Task<InscricaoCreateResultDto> CriarAsync(InscricaoCreateDto dto)
         {
             // 0) sanity checks (existência)
-            if (!await _context.Eventos.AnyAsync(e => e.Id == dto.EventoId))
+            var evento = await _context.Eventos.Where(e => e.Id == dto.EventoId).SingleOrDefaultAsync();
+
+			if (evento is null)
                 throw new InscricaoException(HttpStatusCode.BadRequest, "Evento não encontrado.",
                     new Dictionary<string, string[]> { ["EventoId"] = new[] { "Id inválido." } });
 
-            if (!await _context.Participantes.AnyAsync(p => p.Id == dto.ParticipanteId))
-                throw new InscricaoException(HttpStatusCode.Conflict, "Participante não encontrado.");
+			var participante = await _context.Participantes
+	            .Where(p => p.Id == dto.ParticipanteId)
+	            .SingleOrDefaultAsync();
 
-            // 1) validação: curso XOR comissão
-            var temCurso = dto.CursoTemaAtualId.HasValue && dto.CursoTemaEspecificoId.HasValue;
+			if (participante is null)
+				throw new InscricaoException(HttpStatusCode.Conflict, "Participante não encontrado.");
+
+			// 1) validação: curso XOR comissão
+			var temCurso = dto.CursoTemaAtualId.HasValue && dto.CursoTemaEspecificoId.HasValue;
             var temComissao = dto.ComissaoId.HasValue;
 
             // 2) duplicidade
@@ -49,16 +56,19 @@ namespace SecretariaConcafras.Application.Services.Implementations
 
             var responsavelId = dto.ResponsavelFinanceiroId ?? dto.ParticipanteId;
 
-            // 4) persiste
-            var ins = new Inscricao
+            var valorInscricao = InscricaoHelper.DefinirValorInscricao(evento, participante);
+
+			// 4) persiste
+			var ins = new Inscricao
             {
                 Id = Guid.NewGuid(),
                 EventoId = dto.EventoId,
                 ParticipanteId = dto.ParticipanteId,
                 ResponsavelFinanceiroId = responsavelId,
                 DataInscricao = DateTime.UtcNow,
-                PagamentoConfirmado = false
-            };
+                PagamentoConfirmado = false,
+                ValorInscricao = valorInscricao
+			};
 
             _context.Inscricoes.Add(ins);
 
@@ -167,8 +177,10 @@ namespace SecretariaConcafras.Application.Services.Implementations
                 TemaEspecifico = i.Cursos.FirstOrDefault(c => c.Curso.Bloco == BlocoCurso.TemaEspecifico)?.Curso.Titulo ?? "—",
                 Trabalhador = i.InscricaoTrabalhador != null,
                 PagamentoStatus = "Pendente",
-                Total = 0m,
-                ParticipanteNome = i.Participante.Nome
+				ValorInscricao = i.ValorInscricao,
+                ParticipanteNome = i.Participante.Nome,
+                ParticipanteDataNascimento = i.Participante.DataNascimento,
+                ParticipanteIdade = DataHelper.CalcularIdadePelaData(i.Participante.DataNascimento, i.Evento.DataInicio)
             }).ToList();
         }
 

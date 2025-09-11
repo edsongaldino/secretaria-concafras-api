@@ -25,7 +25,7 @@ namespace SecretariaConcafras.Infrastructure
         public DbSet<InscricaoTrabalhador> InscricoesTrabalhadores { get; set; }
 
         public DbSet<Pagamento> Pagamentos { get; set; }
-        public DbSet<PagamentoHistorico> PagamentosHistorico { get; set; }
+        public DbSet<PagamentoItem> PagamentoItens { get; set; }
 
         public DbSet<Checkin> Checkins { get; set; }
 

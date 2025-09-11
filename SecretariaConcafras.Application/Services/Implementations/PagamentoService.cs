@@ -35,24 +35,24 @@ namespace SecretariaConcafras.Application.Services
                     p.ResponsavelFinanceiroId == responsavelId &&
                     (p.Status == PagamentoStatus.Aguardando || p.Status == PagamentoStatus.Pendente));
 
-            if (pag is null)
-            {
-                pag = new Pagamento
-                {
-                    Id = Guid.NewGuid(),
-                    EventoId = eventoId,
-                    ResponsavelFinanceiroId = responsavelId,
-                    ValorTotal = 0m,
-                    Metodo = MetodoPagamento.Checkout,
-                    Status = PagamentoStatus.Pendente, // ficará pendente após criar a preferência
-                    DataCriacao = DateTime.UtcNow
-                };
-                _db.Pagamentos.Add(pag);
-                await _db.SaveChangesAsync();
-            }
+			if (pag is null)
+			{
+				pag = new Pagamento
+				{
+					Id = Guid.NewGuid(),
+					EventoId = eventoId,
+					ResponsavelFinanceiroId = responsavelId,
+					ValorTotal = 0m, // inicia zerado; vamos recalcular depois
+					Metodo = MetodoPagamento.Checkout,
+					Status = PagamentoStatus.Pendente,
+					DataCriacao = DateTime.UtcNow
+				};
+				_db.Pagamentos.Add(pag);
+				await _db.SaveChangesAsync();
+			}
 
-            // 1) Buscar inscrições do responsável no evento
-            var inscs = await _db.Inscricoes
+			// 1) Buscar inscrições do responsável no evento
+			var inscs = await _db.Inscricoes
                 .Where(i => i.EventoId == eventoId && i.ResponsavelFinanceiroId == responsavelId)
                 .Include(i => i.Cursos).ThenInclude(ic => ic.Curso)
                 .Include(i => i.PagamentoItem).ThenInclude(pi => pi.Pagamento)
@@ -130,35 +130,38 @@ namespace SecretariaConcafras.Application.Services
                 };
             }
 
-            // 4) Calcular valores (TODO: substitua pelo cálculo real)
-            foreach (var i in elegiveis)
-            {
-                var valorItem = 10m; // TODO: calcule de verdade
-                _db.Set<PagamentoItem>().Add(new PagamentoItem
-                {
-                    Id = Guid.NewGuid(),
-                    PagamentoId = pag.Id,
-                    InscricaoId = i.Id,
-                    Valor = valorItem
-                });
-            }
+			// 4) Calcular valores
+			foreach (var i in elegiveis)
+			{
+				var valorItem = i.ValorInscricao; // usa o valor da inscrição
+				if (valorItem <= 0)
+					continue; // ou lance exceção se preferir
 
-            await _db.SaveChangesAsync();
+				_db.Set<PagamentoItem>().Add(new PagamentoItem
+				{
+					Id = Guid.NewGuid(),
+					PagamentoId = pag.Id,
+					InscricaoId = i.Id,
+					Valor = valorItem
+				});
+			}
 
-            // 5) Recalcular total
-            pag.ValorTotal = await _db.Pagamentos
-                .Where(p => p.Id == pag.Id)
-                .Select(p => p.Itens.Sum(it => it.Valor))
-                .FirstAsync();
+			await _db.SaveChangesAsync();
 
-            if (pag.ValorTotal <= 0)
-                throw new InvalidOperationException("Valor total do pagamento deve ser maior que zero.");
+			// 5) Recalcular total
+			pag.ValorTotal = await _db.PagamentoItens
+				.Where(pi => pi.PagamentoId == pag.Id)
+				.Select(pi => (decimal?)pi.Valor)
+				.SumAsync() ?? 0m;
 
-            await _db.SaveChangesAsync();
+			if (pag.ValorTotal <= 0)
+				throw new InvalidOperationException("Valor total do pagamento deve ser maior que zero.");
 
-            // 6) Criar preferência no Mercado Pago (direto no SDK)
-            //    AccessToken
-            MercadoPagoConfig.AccessToken = _mp.AccessToken;
+			await _db.SaveChangesAsync();
+
+			// 6) Criar preferência no Mercado Pago (direto no SDK)
+			//    AccessToken
+			MercadoPagoConfig.AccessToken = _mp.AccessToken;
 
             // URLs
             var notify = _mp.WebhookBaseUrl; // ex.: https://api.inscribo.com.br/api/pagamentos/mp/webhook

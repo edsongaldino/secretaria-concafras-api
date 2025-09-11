@@ -9,7 +9,7 @@ public class Participante
     public string Nome { get; set; }
 
     [Required]
-    public DateTime DataNascimento { get; set; }
+    public DateOnly DataNascimento { get; set; }
 
     [Required, MaxLength(11)] // 11 dígitos do CPF
     public string CPF { get; set; }
