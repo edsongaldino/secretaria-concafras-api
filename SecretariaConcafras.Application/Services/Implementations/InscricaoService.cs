@@ -4,6 +4,7 @@ using SecretariaConcafras.Application.DTOs.Inscricoes;
 using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Domain.Entities;
 using SecretariaConcafras.Domain.Enums;
+using SecretariaConcafras.Domain.Exceptions;
 using SecretariaConcafras.Infrastructure;
 using System;
 using System.Net;
@@ -25,10 +26,11 @@ namespace SecretariaConcafras.Application.Services.Implementations
         {
             // 0) sanity checks (existência)
             if (!await _context.Eventos.AnyAsync(e => e.Id == dto.EventoId))
-                throw new InscricaoException(HttpStatusCode.BadRequest, "Evento não encontrado.");
+                throw new InscricaoException(HttpStatusCode.BadRequest, "Evento não encontrado.",
+                    new Dictionary<string, string[]> { ["EventoId"] = new[] { "Id inválido." } });
 
             if (!await _context.Participantes.AnyAsync(p => p.Id == dto.ParticipanteId))
-                throw new InscricaoException(HttpStatusCode.BadRequest, "Participante não encontrado.");
+                throw new InscricaoException(HttpStatusCode.Conflict, "Participante não encontrado.");
 
             // 1) validação: curso XOR comissão
             var temCurso = dto.CursoTemaAtualId.HasValue && dto.CursoTemaEspecificoId.HasValue;
@@ -168,14 +170,6 @@ namespace SecretariaConcafras.Application.Services.Implementations
                 Total = 0m,
                 ParticipanteNome = i.Participante.Nome
             }).ToList();
-        }
-
-
-
-        public class InscricaoException : Exception
-        {
-            public HttpStatusCode StatusCode { get; }
-            public InscricaoException(HttpStatusCode status, string message) : base(message) => StatusCode = status;
         }
 
     }

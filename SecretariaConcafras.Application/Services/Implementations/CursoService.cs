@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SecretariaConcafras.Application.DTOs.Cursos;
 using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Domain.Entities;
+using SecretariaConcafras.Domain.Enums;
 using SecretariaConcafras.Infrastructure;
 using System;
 
@@ -69,15 +70,29 @@ namespace SecretariaConcafras.Application.Services.Implementations
             return _mapper.Map<IEnumerable<CursoResponseDto>>(entities);
         }
 
-        public async Task<IEnumerable<CursoResponseDto>> ObterPorEventoAsync(Guid eventoId)
+        public async Task<IEnumerable<CursoResponseDto>> ObterPorEventoAsync(
+        Guid eventoId, PublicoCurso? publico, BlocoCurso? bloco, bool? neofito)
         {
-            var entities = await _context.Cursos
+            IQueryable<Curso> q = _context.Cursos
+                .AsNoTracking()
                 .Include(c => c.Evento)
                 .Include(c => c.Instituto)
-                .Where(c => c.EventoId == eventoId)
+                .Where(c => c.EventoId == eventoId);
+
+            if (publico.HasValue)
+                q = q.Where(c => c.Publico == publico.Value);
+
+            if (bloco.HasValue)
+                q = q.Where(c => c.Bloco == bloco.Value);
+
+            if (neofito.HasValue)
+                q = q.Where(c => c.Neofito == neofito.Value);
+
+            var list = await q
+                .OrderBy(c => c.Titulo)
                 .ToListAsync();
 
-            return _mapper.Map<IEnumerable<CursoResponseDto>>(entities);
+            return _mapper.Map<IEnumerable<CursoResponseDto>>(list);
         }
     }
 }

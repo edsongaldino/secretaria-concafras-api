@@ -1,6 +1,7 @@
 using AutoMapper;
 using MercadoPago.Config;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -11,6 +12,7 @@ using SecretariaConcafras.Application.Interfaces.Services;
 using SecretariaConcafras.Application.Mappings;
 using SecretariaConcafras.Application.Options;
 using SecretariaConcafras.Application.Services;
+using SecretariaConcafras.Domain.Exceptions;
 using SecretariaConcafras.Domain.Interfaces;
 using SecretariaConcafras.Infrastructure;
 using SecretariaConcafras.Infrastructure.Repositories;
@@ -51,12 +53,18 @@ builder.Services.Scan(scan => scan
 );
 
 
+// Configuração do MpOptions direto do appsettings
 builder.Services.Configure<MpOptions>(builder.Configuration.GetSection("MercadoPago"));
-builder.Services.AddSingleton(sp => {
+
+// Define singleton que injeta as opções e seta o token global do SDK
+builder.Services.AddSingleton(sp =>
+{
     var opt = sp.GetRequiredService<IOptions<MpOptions>>().Value;
     MercadoPagoConfig.AccessToken = opt.AccessToken;
     return opt;
 });
+
+// Registro do seu gateway de pagamento
 builder.Services.AddScoped<IGatewayPagamento, MercadoPagoCheckoutProGateway>();
 
 // AutoMapper
@@ -151,6 +159,41 @@ app.UseSwaggerUI(c =>
 
 
 app.UseCors("AllowAngular");
+
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var feat = context.Features.Get<IExceptionHandlerPathFeature>();
+        var ex = feat?.Error;
+
+        ProblemDetails problem;
+
+        if (ex is InscricaoException iex)
+        {
+            context.Response.StatusCode = (int)iex.Status;
+            problem = new ProblemDetails
+            {
+                Status = (int)iex.Status,
+                Title = iex.Message
+            };
+            if (iex.Errors is not null)
+                problem.Extensions["errors"] = iex.Errors;
+        }
+        else
+        {
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Erro inesperado."
+            };
+        }
+
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(problem);
+    });
+});
 
 //app.UseHttpsRedirection();
 app.UseRouting();

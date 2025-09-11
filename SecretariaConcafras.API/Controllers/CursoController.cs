@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using SecretariaConcafras.Application.DTOs.Cursos;
 using SecretariaConcafras.Application.Interfaces.Services;
+using SecretariaConcafras.Domain.Enums;
 
 namespace SecretariaConcafras.API.Controllers
 {
@@ -28,12 +29,45 @@ namespace SecretariaConcafras.API.Controllers
         }
 
         [HttpGet("obter-por-evento/{eventoId:guid}")]
-        public async Task<IActionResult> ObterPorEventoId(Guid eventoId)
+        public async Task<IActionResult> ObterPorEventoId(
+        Guid eventoId,
+        [FromQuery] string? publico,
+        [FromQuery] string? bloco,
+        [FromQuery] bool? neofito)
         {
-            var result = await _service.ObterPorEventoAsync(eventoId);
-            if (result == null) return NotFound();
+            // parse opcional de "publico"
+            PublicoCurso? publicoEnum = null;
+            if (!string.IsNullOrWhiteSpace(publico))
+            {
+                if (int.TryParse(publico, out var pNum) && Enum.IsDefined(typeof(PublicoCurso), pNum))
+                    publicoEnum = (PublicoCurso)pNum;
+                else if (Enum.TryParse<PublicoCurso>(publico, ignoreCase: true, out var pNamed))
+                    publicoEnum = pNamed;
+                else
+                    return BadRequest("Parâmetro 'publico' inválido. Valores aceitos: Crianca|Jovem|Adulto ou 1|2|3.");
+            }
+
+            // parse opcional de "bloco"
+            BlocoCurso? blocoEnum = null;
+            if (!string.IsNullOrWhiteSpace(bloco))
+            {
+                if (int.TryParse(bloco, out var bNum) && Enum.IsDefined(typeof(BlocoCurso), bNum))
+                    blocoEnum = (BlocoCurso)bNum;
+                else if (Enum.TryParse<BlocoCurso>(bloco, ignoreCase: true, out var bNamed))
+                    blocoEnum = bNamed;
+                else
+                    return BadRequest("Parâmetro 'bloco' inválido. Valores aceitos: TemaAtual|TemaEspecifico ou 1|2.");
+            }
+
+            // chama o serviço passando filtros opcionais
+            var result = await _service.ObterPorEventoAsync(eventoId, publicoEnum, blocoEnum, neofito);
+
+            if (result == null || !result.Any())
+                return NotFound("Nenhum curso encontrado com esses parâmetros.");
+
             return Ok(result);
         }
+
 
         [HttpPost]
         public async Task<IActionResult> Criar([FromBody] CursoCreateDto dto)

@@ -19,7 +19,7 @@ namespace SecretariaConcafras.API.Controllers
 
         // cria pagamento (grupo)
         [HttpPost("checkout/grupo")]
-        public async Task<IActionResult> CriarParaGrupo(Guid eventoId, Guid responsavelId)
+        public async Task<IActionResult> CriarParaGrupo([FromQuery] Guid eventoId, [FromQuery] Guid responsavelId)
         {
             var result = await _service.CriarParaGrupoCheckoutAsync(eventoId, responsavelId);
             return Ok(result);
