@@ -22,8 +22,32 @@ namespace SecretariaConcafras.Application.Services
 
         public async Task<PagamentoCreateResultDto> CriarParaGrupoCheckoutAsync(Guid eventoId, Guid responsavelId)
         {
-            // 1) buscar inscrições elegíveis
-            // Carregamento
+            // 0) Reaproveitar pagamento em aberto/pendente do mesmo evento+responsável
+            //    (evita criar um novo e bater no UNIQUE(inscricao_id))
+            var pag = await _db.Pagamentos
+                .Include(p => p.Itens)
+                .FirstOrDefaultAsync(p =>
+                    p.EventoId == eventoId &&
+                    p.ResponsavelFinanceiroId == responsavelId &&
+                    (p.Status == PagamentoStatus.Aguardando || p.Status == PagamentoStatus.Pendente));
+
+            if (pag is null)
+            {
+                pag = new Pagamento
+                {
+                    Id = Guid.NewGuid(),
+                    EventoId = eventoId,
+                    ResponsavelFinanceiroId = responsavelId,
+                    ValorTotal = 0m,
+                    Metodo = MetodoPagamento.Checkout,
+                    Status = PagamentoStatus.Pendente, // só muda para Pendente depois de criar a preferência
+                    DataCriacao = DateTime.UtcNow
+                };
+                _db.Pagamentos.Add(pag);
+                await _db.SaveChangesAsync();
+            }
+
+            // 1) Buscar inscrições do responsável no evento (com navegações necessárias)
             var inscs = await _db.Inscricoes
                 .Where(i => i.EventoId == eventoId && i.ResponsavelFinanceiroId == responsavelId)
                 .Include(i => i.Cursos).ThenInclude(ic => ic.Curso)
@@ -32,7 +56,7 @@ namespace SecretariaConcafras.Application.Services
                 .AsNoTracking()
                 .ToListAsync();
 
-            // Helpers
+            // Helpers (iguais aos seus)
             bool NaoPago(Inscricao i) =>
                 i.PagamentoItem?.Pagamento == null ||
                 i.PagamentoItem.Pagamento.Status != PagamentoStatus.Pago;
@@ -50,65 +74,99 @@ namespace SecretariaConcafras.Application.Services
                 i.InscricaoTrabalhador != null;
 
             bool TrabalhadorComComissao(Inscricao i) =>
-                    EhTrabalhador(i) && (i.InscricaoTrabalhador.ComissaoEvento != null
-                         || i.InscricaoTrabalhador.ComissaoEventoId != null);
+                EhTrabalhador(i) && (i.InscricaoTrabalhador.ComissaoEvento != null || i.InscricaoTrabalhador.ComissaoEventoId != null);
 
             bool EhCrianca(Inscricao i) =>
-                // se o "público" vem do(s) curso(s):
                 i.Cursos?.Any(c => c.Curso != null && c.Curso.Publico == PublicoCurso.Crianca) == true;
-            // ou, se o público vem do próprio participante, troque por:
-            //    i.Participante?.Publico == PublicoCurso.Crianca;
 
-            // Regra por tipo
             bool ElegivelParticipante(Inscricao i)
             {
-                // Criança: 1 curso basta
-                if (EhCrianca(i)) return TemPeloMenosUmCurso(i);
-                // Jovem/Adulto: precisa dos dois blocos
-                return TemTemaAtual(i) && TemTemaEspecifico(i);
+                if (EhCrianca(i)) return TemPeloMenosUmCurso(i);          // criança: 1 curso basta
+                return TemTemaAtual(i) && TemTemaEspecifico(i);           // jovem/adulto: precisa dos 2 blocos
             }
 
-            // FINAL: não pago E (trabalhador válido OU participante válido)
-            var elegiveis = inscs
-                .Where(i => NaoPago(i) &&
-                            (TrabalhadorComComissao(i) ||
-                             (!EhTrabalhador(i) && ElegivelParticipante(i))))
-                .ToList();
+            // 2) Elegíveis pelo seu critério de negócio (não pago + regras)
+            var candidatos = inscs.Where(i =>
+                NaoPago(i) &&
+                (TrabalhadorComComissao(i) || (!EhTrabalhador(i) && ElegivelParticipante(i)))
+            );
 
-            // Evite 500 para caso esperado:
-            if (!elegiveis.Any())
-                throw new InvalidOperationException("Não há inscrições elegíveis para pagamento.");
+            // 3) Dos candidatos, pegue apenas os que ainda NÃO têm item em outro pagamento
+            //    (se já tiver PagamentoItem em pagamento aberto/pendente diferente, NÃO adiciona para não violar UNIQUE)
+            var jaExistentes = new HashSet<Guid>(pag.Itens.Select(x => x.InscricaoId)); // itens deste pagamento
+            var elegiveis = new List<Inscricao>();
 
-
-            // 2) calcular valor (ajuste sua regra)
-            decimal total = elegiveis.Sum(_ => 0m); // TODO: coloque o valor real
-
-            // 3) criar registro local
-            var pag = new Pagamento
+            foreach (var i in candidatos)
             {
-                Id = Guid.NewGuid(),
-                EventoId = eventoId,
-                ResponsavelFinanceiroId = responsavelId,
-                ValorTotal = total,
-                Metodo = MetodoPagamento.Checkout,
-                Status = PagamentoStatus.Pendente,
-                DataCriacao = DateTime.UtcNow
-            };
-            _db.Pagamentos.Add(pag);
+                var temItemEmOutroPagamento = i.PagamentoItem != null
+                                              && i.PagamentoItem.Pagamento != null
+                                              && i.PagamentoItem.PagamentoId != pag.Id
+                                              && (i.PagamentoItem.Pagamento.Status == PagamentoStatus.Aguardando
+                                                  || i.PagamentoItem.Pagamento.Status == PagamentoStatus.Pendente);
+
+                if (temItemEmOutroPagamento)
+                {
+                    // pula: essa inscrição já está “presa” em outro pagamento em aberto
+                    continue;
+                }
+
+                if (!jaExistentes.Contains(i.Id))
+                {
+                    elegiveis.Add(i);
+                    jaExistentes.Add(i.Id);
+                }
+            }
+
+            if (!elegiveis.Any())
+                return new PagamentoCreateResultDto
+                {
+                    PagamentoId = pag.Id,
+                    EventoId = eventoId,
+                    ResponsavelFinanceiroId = responsavelId,
+                    Valor = pag.Itens.Sum(x => x.Valor),
+                    Status = pag.Status.ToString(),
+                    CheckoutUrl = null, // nada novo a adicionar
+                    Mensagem = "Nenhuma inscrição elegível (ou já associada a outro pagamento em aberto)."
+                };
+
+            // 4) Calcular valores (substitua pelo seu cálculo real)
             foreach (var i in elegiveis)
-                _db.Set<PagamentoItem>().Add(new PagamentoItem { Id = Guid.NewGuid(), PagamentoId = pag.Id, InscricaoId = i.Id, Valor = 0m });
+            {
+                var valorItem = 0m; // TODO: calcule de verdade
+                _db.Set<PagamentoItem>().Add(new PagamentoItem
+                {
+                    Id = Guid.NewGuid(),
+                    PagamentoId = pag.Id,
+                    InscricaoId = i.Id,
+                    Valor = valorItem
+                });
+            }
+
+            await _db.SaveChangesAsync(); // <- agora não deve mais disparar 23505
+
+            // 5) Recalcular total do pagamento
+            pag.ValorTotal = await _db.Pagamentos
+                .Where(p => p.Id == pag.Id)
+                .Select(p => p.Itens.Sum(it => it.Valor))
+                .FirstAsync();
+
+            if (pag.ValorTotal <= 0)
+                throw new InvalidOperationException("Valor total do pagamento deve ser maior que zero.");
+
             await _db.SaveChangesAsync();
 
-            // 4) criar preferência no Mercado Pago
-            var notify = $"{_mp.WebhookBaseUrl}/api/pagamentos/mp/webhook";
+            // 6) Criar preferência no Mercado Pago
+            //    ⚠ NÃO DUPLIQUE a URL do webhook: _mp.WebhookBaseUrl já deve estar completo!
+            var notify = _mp.WebhookBaseUrl; // ex.: https://api.inscribo.com.br/api/pagamentos/mp/webhook
             var success = $"{_mp.AppBaseUrl}/pagamento/sucesso?pid={pag.Id}";
             var failure = $"{_mp.AppBaseUrl}/pagamento/erro?pid={pag.Id}";
             var pending = $"{_mp.AppBaseUrl}/pagamento/pendente?pid={pag.Id}";
             var desc = $"Evento {eventoId} - {elegiveis.Count} inscrição(ões)";
 
-            var pref = await _gateway.CriarCheckoutGrupoAsync(pag.Id, total, desc, notify, success, failure, pending);
+            var pref = await _gateway.CriarCheckoutGrupoAsync(pag.Id, pag.ValorTotal, desc, notify, success, failure, pending);
 
             pag.ProviderReference = pref.ProviderRef; // preference_id
+            pag.Status = PagamentoStatus.Pendente;    // agora sim, já tem preferência criada
             await _db.SaveChangesAsync();
 
             return new PagamentoCreateResultDto
@@ -116,11 +174,12 @@ namespace SecretariaConcafras.Application.Services
                 PagamentoId = pag.Id,
                 EventoId = eventoId,
                 ResponsavelFinanceiroId = responsavelId,
-                Valor = total,
+                Valor = pag.ValorTotal,
                 Status = pag.Status.ToString(),
                 CheckoutUrl = pref.CheckoutUrl
             };
         }
+
 
         public async Task<PagamentoStatus> ObterStatusAsync(Guid pagamentoId)
         {

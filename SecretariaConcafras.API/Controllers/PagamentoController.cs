@@ -21,8 +21,16 @@ namespace SecretariaConcafras.API.Controllers
         [HttpPost("checkout/grupo")]
         public async Task<IActionResult> CriarParaGrupo([FromQuery] Guid eventoId, [FromQuery] Guid responsavelId)
         {
-            var result = await _service.CriarParaGrupoCheckoutAsync(eventoId, responsavelId);
-            return Ok(result);
+            try
+            {
+                var res = await _service.CriarParaGrupoCheckoutAsync(eventoId, responsavelId);
+                return Ok(res);
+            }
+            catch (ApplicationException aex) // erro vindo do gateway (Mercado Pago)
+            {
+                // opcional: parse do status embutido na mensagem; por padrão, 502
+                return StatusCode(502, new { code = "MERCADOPAGO_ERROR", message = aex.Message });
+            }
         }
 
         // status (para polling)

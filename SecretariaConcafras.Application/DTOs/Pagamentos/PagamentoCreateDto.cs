@@ -24,6 +24,7 @@ namespace SecretariaConcafras.Application.DTOs.Pagamentos
         public string? PixCopyPaste { get; set; }
         public string? QrCodeBase64 { get; set; }
         public DateTime? ExpiraEm { get; set; }
+        public string? Mensagem { get; set; }
     }
 
     public class CriarPagamentoGrupoDto

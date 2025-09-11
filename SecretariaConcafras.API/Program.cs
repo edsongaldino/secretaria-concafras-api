@@ -17,6 +17,7 @@ using SecretariaConcafras.Domain.Interfaces;
 using SecretariaConcafras.Infrastructure;
 using SecretariaConcafras.Infrastructure.Repositories;
 using SecretariaConcafras.SharedKernel.Security;
+using System.Diagnostics;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -194,6 +195,50 @@ app.UseExceptionHandler(errorApp =>
         await context.Response.WriteAsJsonAsync(problem);
     });
 });
+
+app.UseExceptionHandler("/error"); // <-- redireciona para o endpoint abaixo
+
+app.Map("/error", (HttpContext http, ILogger<Program> logger) =>
+{
+    var feat = http.Features.Get<IExceptionHandlerFeature>();
+    var ex = feat?.Error;
+    var id = Activity.Current?.Id ?? http.TraceIdentifier;
+
+    switch (ex)
+    {
+        case InscricaoException iex:
+            return Results.Problem(
+                statusCode: (int)iex.Status,
+                title: iex.Message,
+                extensions: new Dictionary<string, object?>
+                {
+                    ["errorId"] = id,
+                    ["errors"] = iex.Errors
+                });
+
+        case InvalidOperationException ioe:
+            return Results.Problem(
+                statusCode: 422,
+                title: "BUSINESS_RULE",
+                detail: ioe.Message,
+                extensions: new Dictionary<string, object?> { ["errorId"] = id });
+
+        case ApplicationException aex:
+            return Results.Problem(
+                statusCode: 502,
+                title: "GATEWAY_ERROR",
+                detail: aex.Message,
+                extensions: new Dictionary<string, object?> { ["errorId"] = id });
+
+        default:
+            logger.LogError(ex, "Unhandled {ErrorId}", id);
+            return Results.Problem(
+                statusCode: 500,
+                title: "Erro interno",
+                extensions: new Dictionary<string, object?> { ["errorId"] = id });
+    }
+});
+
 
 //app.UseHttpsRedirection();
 app.UseRouting();
