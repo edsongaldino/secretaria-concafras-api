@@ -35,4 +35,10 @@ namespace SecretariaConcafras.Application.DTOs.Pagamentos
         // hoje só usa Checkout, mas deixamos aberto
         public MetodoPagamento Metodo { get; set; } = MetodoPagamento.Checkout;
     }
+
+    public sealed class CheckoutGrupoDto
+    {
+        public Guid EventoId { get; set; }
+        public Guid ResponsavelFinanceiroId { get; set; }
+    }
 }

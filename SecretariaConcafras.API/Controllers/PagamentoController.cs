@@ -19,11 +19,11 @@ namespace SecretariaConcafras.API.Controllers
 
         // cria pagamento (grupo)
         [HttpPost("checkout/grupo")]
-        public async Task<IActionResult> CriarParaGrupo([FromQuery] Guid eventoId, [FromQuery] Guid responsavelId)
+        public async Task<IActionResult> CriarParaGrupo([FromBody] CheckoutGrupoDto dto)
         {
             try
             {
-                var res = await _service.CriarParaGrupoCheckoutAsync(eventoId, responsavelId);
+                var res = await _service.CriarParaGrupoCheckoutAsync(dto.EventoId, dto.ResponsavelFinanceiroId);
                 return Ok(res);
             }
             catch (ApplicationException aex) // erro vindo do gateway (Mercado Pago)
@@ -39,6 +39,13 @@ namespace SecretariaConcafras.API.Controllers
         {
             var st = await _service.ObterStatusAsync(id);
             return Ok(new { status = st.ToString() });
+        }
+
+        [HttpGet("status/{pagamentoId:guid}")]
+        public async Task<IActionResult> ObterStatus(Guid pagamentoId)
+        {
+            var status = await _service.ObterStatusAsync(pagamentoId);
+            return Ok(new { pagamentoId, status = status.ToString() });
         }
     }
 }
