@@ -9,7 +9,7 @@ namespace SecretariaConcafras.Application.Interfaces
         /// Cria uma cobrança (Checkout Pro do Mercado Pago) para todas as inscrições
         /// do responsável financeiro no evento informado, retornando a URL de checkout.
         /// </summary>
-        Task<PagamentoCreateResultDto> CriarParaGrupoCheckoutAsync(Guid eventoId, Guid responsavelId);
+        Task<PagamentoCreateResultDto> CriarParaGrupoCheckoutAsync(Guid eventoId, Guid responsavelId, List<Guid>? excluirInscricaoIds = null);
 
         /// <summary>
         /// Obtém o status atual do pagamento (Pendente/Aguardando/Pago/...).

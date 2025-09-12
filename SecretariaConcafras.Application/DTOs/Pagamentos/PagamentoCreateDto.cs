@@ -40,5 +40,6 @@ namespace SecretariaConcafras.Application.DTOs.Pagamentos
     {
         public Guid EventoId { get; set; }
         public Guid ResponsavelFinanceiroId { get; set; }
+        public List<Guid> ExcluirInscricaoIds { get; set; } = new();
     }
 }

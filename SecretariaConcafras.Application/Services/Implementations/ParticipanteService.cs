@@ -1,5 +1,6 @@
 ﻿// Application/Services/Implementations/ParticipanteService.cs
 using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using SecretariaConcafras.Application.DTOs.Participantes;
 using SecretariaConcafras.Application.Interfaces;
@@ -54,6 +55,17 @@ public class ParticipanteService : IParticipanteService
             await _db.SaveChangesAsync(ct);
             return new ParticipanteResultadoDto(existente.Id, existente.Nome);
         }
+    }
+
+    public async Task<ParticipanteResponseDto?> ObterPorIdAsync(Guid id)
+    {
+        // Usa ProjectTo para mapear direto no SQL
+        return await _db.Participantes
+            .AsNoTracking()
+            .Include(p => p.Endereco)
+            .Where(p => p.Id == id)
+            .ProjectTo<ParticipanteResponseDto>(_mapper.ConfigurationProvider)
+            .FirstOrDefaultAsync();
     }
 
     static string OnlyDigits(string v) => new string((v ?? "").Where(char.IsDigit).ToArray());

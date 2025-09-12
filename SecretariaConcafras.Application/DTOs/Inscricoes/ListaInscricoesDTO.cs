@@ -13,6 +13,7 @@ public class ListaInscricoesDTO
     public string EventoTitulo { get; set; } = default!;
     public DateTime DataInscricao { get; set; }
 
+    public Guid ParticipanteId { get; set; }
     public string ParticipanteNome { get; set; } = default!;
 	public DateOnly ParticipanteDataNascimento { get; set; }
 	public int ParticipanteIdade { get; set; }

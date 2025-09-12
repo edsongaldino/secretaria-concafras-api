@@ -25,42 +25,33 @@ namespace SecretariaConcafras.Application.Services
             _mp = mp.Value;
         }
 
-        public async Task<PagamentoCreateResultDto> CriarParaGrupoCheckoutAsync(Guid eventoId, Guid responsavelId)
+        public async Task<PagamentoCreateResultDto> CriarParaGrupoCheckoutAsync(
+    Guid eventoId,
+    Guid responsavelId,                       // <- PARTICIPANTE (FK em pagamentos)
+    List<Guid>? excluirInscricaoIds = null)
         {
-            // 0) Reaproveitar pagamento em aberto/pendente do mesmo evento+responsável
-            var pag = await _db.Pagamentos
-                .Include(p => p.Itens)
-                .FirstOrDefaultAsync(p =>
-                    p.EventoId == eventoId &&
-                    p.ResponsavelFinanceiroId == responsavelId &&
-                    (p.Status == PagamentoStatus.Aguardando || p.Status == PagamentoStatus.Pendente));
+            excluirInscricaoIds ??= new();
 
-			if (pag is null)
-			{
-				pag = new Pagamento
-				{
-					Id = Guid.NewGuid(),
-					EventoId = eventoId,
-					ResponsavelFinanceiroId = responsavelId,
-					ValorTotal = 0m, // inicia zerado; vamos recalcular depois
-					Metodo = MetodoPagamento.Checkout,
-					Status = PagamentoStatus.Pendente,
-					DataCriacao = DateTime.UtcNow
-				};
-				_db.Pagamentos.Add(pag);
-				await _db.SaveChangesAsync();
-			}
+            // ===== 1) Coletar inscrições já vinculadas a pagamentos em aberto (para não duplicar) =====
+            var inscricoesEmPagamentoAberto = await _db.Pagamentos
+                .Where(p => p.EventoId == eventoId
+                         && (p.Status == PagamentoStatus.Aguardando || p.Status == PagamentoStatus.Pendente))
+                .SelectMany(p => p.Itens.Select(it => it.InscricaoId))
+                .ToListAsync();
 
-			// 1) Buscar inscrições do responsável no evento
-			var inscs = await _db.Inscricoes
-                .Where(i => i.EventoId == eventoId && i.ResponsavelFinanceiroId == responsavelId)
+            var emAbertoSet = inscricoesEmPagamentoAberto.ToHashSet();
+            var excluirSet = excluirInscricaoIds.ToHashSet();
+
+            // ===== 2) Trazer TODAS as inscrições do evento (sem filtrar por responsável ainda) =====
+            var todasInscricoesEvento = await _db.Inscricoes
+                .Where(i => i.EventoId == eventoId)
                 .Include(i => i.Cursos).ThenInclude(ic => ic.Curso)
                 .Include(i => i.PagamentoItem).ThenInclude(pi => pi.Pagamento)
                 .Include(i => i.InscricaoTrabalhador).ThenInclude(it => it.ComissaoEvento)
                 .AsNoTracking()
                 .ToListAsync();
 
-            // Helpers de negócio
+            // ===== Helpers de negócio (iguais aos seus) =====
             bool NaoPago(Inscricao i) =>
                 i.PagamentoItem?.Pagamento == null ||
                 i.PagamentoItem.Pagamento.Status != PagamentoStatus.Pago;
@@ -85,128 +76,164 @@ namespace SecretariaConcafras.Application.Services
 
             bool ElegivelParticipante(Inscricao i)
             {
-                if (EhCrianca(i)) return TemPeloMenosUmCurso(i);         // criança: 1 curso basta
-                return TemTemaAtual(i) && TemTemaEspecifico(i);          // jovem/adulto: precisa dos 2 blocos
+                if (EhCrianca(i)) return TemPeloMenosUmCurso(i); // criança: 1 curso basta
+                return TemTemaAtual(i) && TemTemaEspecifico(i);  // jovem/adulto: precisa dos 2 blocos
             }
 
-            // 2) Elegíveis
-            var candidatos = inscs.Where(i =>
+            // ===== 3) Candidatos elegíveis do evento (sem responsável), respeitando exclusões e "em aberto" =====
+            var candidatos = todasInscricoesEvento.Where(i =>
+                !excluirSet.Contains(i.Id) &&
+                !emAbertoSet.Contains(i.Id) &&
                 NaoPago(i) &&
                 (TrabalhadorComComissao(i) || (!EhTrabalhador(i) && ElegivelParticipante(i)))
-            );
+            ).ToList();
 
-            // 3) Evitar duplicar itens em outros pagamentos em aberto
-            var jaExistentes = new HashSet<Guid>(pag.Itens.Select(x => x.InscricaoId));
-            var elegiveis = new List<Inscricao>();
-
-            foreach (var i in candidatos)
+            if (!candidatos.Any())
             {
-                var temItemEmOutroPagamento = i.PagamentoItem != null
-                    && i.PagamentoItem.Pagamento != null
-                    && i.PagamentoItem.PagamentoId != pag.Id
-                    && (i.PagamentoItem.Pagamento.Status == PagamentoStatus.Aguardando
-                        || i.PagamentoItem.Pagamento.Status == PagamentoStatus.Pendente);
-
-                if (temItemEmOutroPagamento) continue;
-
-                if (!jaExistentes.Contains(i.Id))
+                // nada para cobrar de ninguém neste evento
+                return new PagamentoCreateResultDto
                 {
-                    elegiveis.Add(i);
-                    jaExistentes.Add(i.Id);
-                }
+                    PagamentoId = Guid.Empty,
+                    EventoId = eventoId,
+                    ResponsavelFinanceiroId = responsavelId,
+                    Valor = 0m,
+                    Status = "SemItens",
+                    CheckoutUrl = null,
+                    Mensagem = "Nenhuma inscrição elegível (todas excluídas, pagas, ou em outro pagamento em aberto)."
+                };
             }
 
+            // ===== 4) Resolver o responsável final =====
+            //   - Se houver ao menos 1 candidato do responsável atual, mantém;
+            //   - Caso contrário, reatribui para o participante do primeiro candidato.
+            var existemDoResponsavelAtual = candidatos.Any(i => i.ResponsavelFinanceiroId == responsavelId);
+            var responsavelFinal = existemDoResponsavelAtual
+                ? responsavelId
+                : candidatos.First().ResponsavelFinanceiroId;
+
+            // Subconjunto elegível do responsável final
+            var elegiveis = candidatos
+                .Where(i => i.ResponsavelFinanceiroId == responsavelFinal)
+                .ToList();
+
+            // Sanidade extra (não deveria acontecer após a lógica acima)
             if (!elegiveis.Any())
+            {
+                return new PagamentoCreateResultDto
+                {
+                    PagamentoId = Guid.Empty,
+                    EventoId = eventoId,
+                    ResponsavelFinanceiroId = responsavelFinal,
+                    Valor = 0m,
+                    Status = "SemItens",
+                    CheckoutUrl = null,
+                    Mensagem = "Nenhuma inscrição elegível para o responsável selecionado."
+                };
+            }
+
+            // ===== 5) Reaproveitar ou criar pagamento do (evento + responsável FINAL) =====
+            var pag = await _db.Pagamentos
+                .Include(p => p.Itens)
+                .FirstOrDefaultAsync(p =>
+                    p.EventoId == eventoId &&
+                    p.ResponsavelFinanceiroId == responsavelFinal &&
+                    (p.Status == PagamentoStatus.Aguardando || p.Status == PagamentoStatus.Pendente));
+
+            if (pag is null)
+            {
+                pag = new Pagamento
+                {
+                    Id = Guid.NewGuid(),
+                    EventoId = eventoId,
+                    ResponsavelFinanceiroId = responsavelFinal,
+                    ValorTotal = 0m,
+                    Metodo = MetodoPagamento.Checkout,
+                    Status = PagamentoStatus.Pendente,
+                    DataCriacao = DateTime.UtcNow
+                };
+                _db.Pagamentos.Add(pag);
+                await _db.SaveChangesAsync();
+            }
+
+            // ===== 6) Adicionar itens evitando duplicação =====
+            var jaNoPagamento = pag.Itens.Select(x => x.InscricaoId).ToHashSet();
+            foreach (var i in elegiveis)
+            {
+                var valorItem = i.ValorInscricao;
+                if (valorItem <= 0) continue;
+
+                if (jaNoPagamento.Contains(i.Id)) continue;
+
+                _db.Set<PagamentoItem>().Add(new PagamentoItem
+                {
+                    Id = Guid.NewGuid(),
+                    PagamentoId = pag.Id,
+                    InscricaoId = i.Id,
+                    Valor = valorItem
+                });
+            }
+
+            await _db.SaveChangesAsync();
+
+            // ===== 7) Recalcular total =====
+            pag.ValorTotal = await _db.PagamentoItens
+                .Where(pi => pi.PagamentoId == pag.Id)
+                .Select(pi => (decimal?)pi.Valor)
+                .SumAsync() ?? 0m;
+
+            if (pag.ValorTotal <= 0)
             {
                 return new PagamentoCreateResultDto
                 {
                     PagamentoId = pag.Id,
                     EventoId = eventoId,
-                    ResponsavelFinanceiroId = responsavelId,
-                    Valor = pag.Itens.Sum(x => x.Valor),
+                    ResponsavelFinanceiroId = responsavelFinal,
+                    Valor = 0m,
                     Status = pag.Status.ToString(),
                     CheckoutUrl = null,
-                    Mensagem = "Nenhuma inscrição elegível (ou já associada a outro pagamento em aberto)."
+                    Mensagem = "Nenhuma inscrição elegível após aplicar regras de valor."
                 };
             }
 
-			// 4) Calcular valores
-			foreach (var i in elegiveis)
-			{
-				var valorItem = i.ValorInscricao; // usa o valor da inscrição
-				if (valorItem <= 0)
-					continue; // ou lance exceção se preferir
+            await _db.SaveChangesAsync();
 
-				_db.Set<PagamentoItem>().Add(new PagamentoItem
-				{
-					Id = Guid.NewGuid(),
-					PagamentoId = pag.Id,
-					InscricaoId = i.Id,
-					Valor = valorItem
-				});
-			}
+            // ===== 8) Criar preferência MP (idempotência opcional) =====
+            MercadoPagoConfig.AccessToken = _mp.AccessToken;
 
-			await _db.SaveChangesAsync();
-
-			// 5) Recalcular total
-			pag.ValorTotal = await _db.PagamentoItens
-				.Where(pi => pi.PagamentoId == pag.Id)
-				.Select(pi => (decimal?)pi.Valor)
-				.SumAsync() ?? 0m;
-
-			if (pag.ValorTotal <= 0)
-				throw new InvalidOperationException("Valor total do pagamento deve ser maior que zero.");
-
-			await _db.SaveChangesAsync();
-
-			// 6) Criar preferência no Mercado Pago (direto no SDK)
-			//    AccessToken
-			MercadoPagoConfig.AccessToken = _mp.AccessToken;
-
-            // URLs
-            var notify = _mp.WebhookBaseUrl; // ex.: https://api.inscribo.com.br/api/pagamentos/mp/webhook
+            var notify = _mp.WebhookBaseUrl;
             var success = $"{_mp.AppBaseUrl}/pagamento/sucesso?pid={pag.Id}";
             var failure = $"{_mp.AppBaseUrl}/pagamento/erro?pid={pag.Id}";
             var pending = $"{_mp.AppBaseUrl}/pagamento/pendente?pid={pag.Id}";
             var desc = $"Evento {eventoId} - {elegiveis.Count} inscrição(ões)";
 
-            var prefRequest = new PreferenceRequest
+            var prefRequest = new MercadoPago.Client.Preference.PreferenceRequest
             {
-                Items = new List<PreferenceItemRequest>
-                {
-                    new()
-                    {
-                        Title      = desc,
-                        Quantity   = 1,
-                        UnitPrice  = pag.ValorTotal,
-                        CurrencyId = "BRL"
-                    }
-                },
-                BackUrls = new PreferenceBackUrlsRequest
+                Items = new List<MercadoPago.Client.Preference.PreferenceItemRequest>
+        {
+            new()
+            {
+                Title      = desc,
+                Quantity   = 1,
+                UnitPrice  = pag.ValorTotal,
+                CurrencyId = "BRL"
+            }
+        },
+                BackUrls = new MercadoPago.Client.Preference.PreferenceBackUrlsRequest
                 {
                     Success = success,
                     Pending = pending,
                     Failure = failure
                 },
-                AutoReturn = "all", // "approved" também funciona
+                AutoReturn = "all",
                 NotificationUrl = notify,
                 ExternalReference = pag.Id.ToString(),
-                StatementDescriptor = "INSCRIBO" // opcional
+                StatementDescriptor = "INSCRIBO"
             };
 
-            // Idempotência opcional (evita prefs duplicadas em replays)
-            // var reqOpts = new MercadoPago.Client.RequestOptions
-            // {
-            //     CustomHeaders = new Dictionary<string, string>
-            //     {
-            //         ["X-Idempotency-Key"] = pag.Id.ToString()
-            //     }
-            // };
+            var prefClient = new MercadoPago.Client.Preference.PreferenceClient();
+            var pref = await prefClient.CreateAsync(prefRequest);
 
-            var prefClient = new PreferenceClient();
-            var pref = await prefClient.CreateAsync(prefRequest /*, reqOpts*/);
-
-            pag.ProviderReference = pref.Id; // preference_id
+            pag.ProviderReference = pref.Id;
             pag.Status = PagamentoStatus.Pendente;
             await _db.SaveChangesAsync();
 
@@ -214,12 +241,13 @@ namespace SecretariaConcafras.Application.Services
             {
                 PagamentoId = pag.Id,
                 EventoId = eventoId,
-                ResponsavelFinanceiroId = responsavelId,
+                ResponsavelFinanceiroId = responsavelFinal,   // <- pode ter sido reatribuído
                 Valor = pag.ValorTotal,
                 Status = pag.Status.ToString(),
-                CheckoutUrl = pref.InitPoint // produção usa InitPoint
+                CheckoutUrl = pref.InitPoint
             };
         }
+
 
         public async Task<PagamentoStatus> ObterStatusAsync(Guid pagamentoId)
         {

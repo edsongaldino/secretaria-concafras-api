@@ -23,7 +23,7 @@ namespace SecretariaConcafras.API.Controllers
         {
             try
             {
-                var res = await _service.CriarParaGrupoCheckoutAsync(dto.EventoId, dto.ResponsavelFinanceiroId);
+                var res = await _service.CriarParaGrupoCheckoutAsync(dto.EventoId, dto.ResponsavelFinanceiroId, dto.ExcluirInscricaoIds);
                 return Ok(res);
             }
             catch (ApplicationException aex) // erro vindo do gateway (Mercado Pago)

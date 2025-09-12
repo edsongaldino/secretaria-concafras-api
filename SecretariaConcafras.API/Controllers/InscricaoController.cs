@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SecretariaConcafras.Application.DTOs.Inscricoes;
 using SecretariaConcafras.Application.Interfaces.Services;
+using SecretariaConcafras.Domain.Entities;
+using SecretariaConcafras.Infrastructure;
 
 namespace SecretariaConcafras.API.Controllers
 {
@@ -57,6 +60,33 @@ namespace SecretariaConcafras.API.Controllers
         {
             var result = await _service.ListaInscricoesAsync(eventoId,participanteId);
             return Ok(result);
+        }
+
+        [HttpGet("{id:guid}/full")]
+        public async Task<InscricaoUpdateDto> GetFull(Guid id, [FromServices] ApplicationDbContext db)
+        {
+            var insc = await db.Inscricoes
+            .Where(i => i.Id == id)
+            .Select(i => new InscricaoUpdateDto
+            {
+                Id = i.Id,
+                EventoId = i.EventoId,
+                ParticipanteId = i.ParticipanteId,
+                ResponsavelFinanceiroId = i.ResponsavelFinanceiroId,
+                DataInscricao = i.DataInscricao,
+                ValorInscricao = i.ValorInscricao,            // garanta não-nulo no banco
+                ParticipanteNome = i.Participante.Nome,
+                EventoTitulo = i.Evento.Titulo,
+                EhTrabalhador = i.InscricaoTrabalhador != null,
+                ComissaoEventoId = i.InscricaoTrabalhador != null
+                    ? (Guid?)i.InscricaoTrabalhador.ComissaoEventoId
+                    : null,
+                CursoIds = i.Cursos.Select(c => c.CursoId).ToList()
+            })
+            .AsNoTracking()
+            .FirstOrDefaultAsync();
+
+            return insc ?? new InscricaoUpdateDto();
         }
     }
 }

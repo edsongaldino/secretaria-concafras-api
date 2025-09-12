@@ -178,6 +178,7 @@ namespace SecretariaConcafras.Application.Services.Implementations
                 Trabalhador = i.InscricaoTrabalhador != null,
                 PagamentoStatus = "Pendente",
 				ValorInscricao = i.ValorInscricao,
+                ParticipanteId = i.ParticipanteId,
                 ParticipanteNome = i.Participante.Nome,
                 ParticipanteDataNascimento = i.Participante.DataNascimento,
                 ParticipanteIdade = DataHelper.CalcularIdadePelaData(i.Participante.DataNascimento, i.Evento.DataInicio)

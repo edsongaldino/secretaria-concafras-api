@@ -1,4 +1,5 @@
 ﻿// API/Controllers/ParticipanteController.cs  (trecho)
+using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using SecretariaConcafras.Application.DTOs.Participantes;
 using SecretariaConcafras.Application.Interfaces.Services;
@@ -16,5 +17,13 @@ public class ParticipanteController : ControllerBase
     {
         var result = await _svc.UpsertPorCpfAsync(dto, ct);
         return Ok(result);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<ParticipanteResponseDto>> ObterPorId(Guid id)
+    {
+        var dto = await _svc.ObterPorIdAsync(id);
+        if (dto is null) return NotFound();
+        return Ok(dto);
     }
 }

@@ -1,19 +1,20 @@
-﻿// Application/Mapping/ParticipanteProfile.cs
-using AutoMapper;
-using SecretariaConcafras.Application.DTOs.Enderecos;
+﻿using AutoMapper;
 using SecretariaConcafras.Application.DTOs.Participantes;
 using SecretariaConcafras.Domain.Entities;
 
-public class ParticipanteProfile : Profile
+namespace SecretariaConcafras.Application.Mappings
 {
-    public ParticipanteProfile()
+    public class ParticipanteMappingProfile : Profile
     {
-        // Endereço DTO -> Entidade
-        CreateMap<EnderecoCreateDto, Endereco>();
+        public ParticipanteMappingProfile()
+        {
+            // mapeia entidade -> dto
+            CreateMap<Participante, ParticipanteResponseDto>()
+                .ForMember(d => d.InstituicaoNome,
+                    opt => opt.MapFrom(s => s.Instituicao != null ? s.Instituicao.Nome : null))
+                .ForMember(d => d.Endereco, opt => opt.MapFrom(s => s.Endereco));
 
-        // Entidade -> DTO de saída (se você tiver ParticipanteDto/ResponseDto, adicione aqui)
-        // CreateMap<Participante, ParticipanteDto>()...
-
-        // OBS: NÃO mapeamos navegação Instituto por aqui; resolvemos InstitutoId no service
+            CreateMap<Endereco, ParticipanteResponseDto.EnderecoDto>();
+        }
     }
 }
